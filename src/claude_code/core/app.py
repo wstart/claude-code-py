@@ -190,11 +190,16 @@ class ClaudeApp:
         )
 
         self._running = True
+        self._loop_active = False
+        self._loop_desc = ""
 
-        # Install Ctrl+C handler — first press exits cleanly
+        # Install Ctrl+C handler
         import signal
 
         def _sigint_handler(sig, frame):
+            if self._loop_active:
+                self._loop_active = False
+                raise KeyboardInterrupt
             self._running = False
             raise KeyboardInterrupt
 
@@ -204,6 +209,16 @@ class ClaudeApp:
             self.ui._print_welcome()
 
             while self._running:
+                # ---- LOOP MODE ----
+                if self._loop_active:
+                    try:
+                        await self._run_loop_mode()
+                    except KeyboardInterrupt:
+                        self._loop_active = False
+                        self.ui.show_info("Loop stopped.")
+                    continue
+
+                # ---- NORMAL MODE ----
                 try:
                     user_input = await self.ui.get_input()
                 except (EOFError, KeyboardInterrupt):
@@ -359,6 +374,46 @@ class ClaudeApp:
     def _cb_spinner_hide(self) -> None:
         if self.ui:
             self.ui.hide_spinner()
+
+    async def _run_loop_mode(self) -> None:
+        """Run loop iterations in the foreground, blocking normal input."""
+        task_desc = self._loop_desc
+        iteration = 0
+        loop_prompt = (
+            f"You are running in a recurring loop. The task is:\n\n"
+            f"  {task_desc}\n\n"
+            f"Execute one iteration now. Be concise.\n"
+            f"When done, output [LOOP:STOP] if the task is complete. "
+            f"Otherwise output [LOOP:CONTINUE] to keep going."
+        )
+
+        self.ui.show_info(f"Loop: {task_desc}")
+
+        while self._loop_active and self._running:
+            iteration += 1
+            self.ui.show_info(f"── iteration #{iteration} ──")
+
+            result = await self.query_engine.run(loop_prompt)
+
+            had_stream = self.ui._streaming
+            self.ui.end_stream()
+            if result.text and not had_stream:
+                self.ui.display_assistant_message(result.text)
+
+            # Check stop signal
+            text = result.text or ""
+            if "[LOOP:STOP]" in text:
+                self.ui.show_info("Loop complete.")
+                self._loop_active = False
+                break
+
+            # Wait before next iteration
+            self.ui.show_info("Next iteration in 30s... (Ctrl+C to stop)")
+            try:
+                await asyncio.sleep(30)
+            except KeyboardInterrupt:
+                self._loop_active = False
+                break
 
     def _update_status_bar(self) -> None:
         if self.ui and self.query_engine:
@@ -760,12 +815,7 @@ class ClaudeApp:
         Usage: /loop <describe what to do>
         The AI decides the pacing based on the task description.
 
-        Examples:
-          /loop 监控服务器状态，有变化就通知我
-          /loop 每隔几分钟检查CI是否跑完
-          /loop 持续扫描新的子域名
-
-        To stop: /loop stop
+        To stop: /loop stop or Ctrl+C
         """
         if not self.ui or not self.query_engine:
             return
@@ -776,63 +826,17 @@ class ClaudeApp:
                 "  /loop 监控服务器状态，有变化就通知我\n"
                 "  /loop 每隔几分钟检查CI是否跑完\n"
                 "  /loop 持续扫描新子域名并记录结果\n\n"
-                "AI 会根据任务自动决定循环节奏。\n"
-                "/loop stop  — 停止当前循环"
+                "AI 自动决定循环节奏。Ctrl+C 或 /loop stop 停止。"
             )
             return
 
         # Stop
         if args.strip().lower() in ("stop", "cancel", "kill"):
-            loop_task = getattr(self, "_loop_task", None)
-            if loop_task and not loop_task.done():
-                loop_task.cancel()
-                self._loop_task = None
-                self.ui.show_info("Loop stopped.")
-            else:
-                self.ui.show_info("No active loop.")
+            self._loop_active = False
+            self.ui.show_info("Loop stopped.")
             return
 
-        task_desc = args.strip()
-        self.ui.show_info(f"Loop started: {task_desc}")
-
-        # Wrap the user's description into a looping instruction
-        loop_prompt = (
-            f"You are running in a recurring loop. The task is:\n\n"
-            f"  {task_desc}\n\n"
-            f"Execute one iteration now. Be concise. "
-            f"When done, output [LOOP:CONTINUE] to continue the loop "
-            f"or [LOOP:STOP] if the task is complete or no longer needed."
-        )
-
-        async def _run_loop():
-            iteration = 0
-            try:
-                while self._running:
-                    iteration += 1
-                    self.ui.display_user_message(
-                        f"[loop #{iteration}] {task_desc}"
-                    )
-
-                    result = await self.query_engine.run(loop_prompt)
-
-                    had_stream = self.ui._streaming
-                    self.ui.end_stream()
-                    if result.text and not had_stream:
-                        self.ui.display_assistant_message(result.text)
-
-                    # Check if loop should stop
-                    text = result.text or ""
-                    if "[LOOP:STOP]" in text:
-                        self.ui.show_info("Loop completed — task finished.")
-                        break
-
-                    # Default: wait 30s between iterations
-                    await asyncio.sleep(30)
-
-            except asyncio.CancelledError:
-                self.ui.show_info("Loop cancelled.")
-            except Exception as e:
-                self.ui.show_error(f"Loop error: {e}")
-
-        task = asyncio.get_event_loop().create_task(_run_loop())
-        self._loop_task = task
+        # Start loop in foreground
+        self._loop_active = True
+        self._loop_desc = args.strip()
+        self.ui.show_info(f"Loop started: {self._loop_desc} (Ctrl+C to stop)")
