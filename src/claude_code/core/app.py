@@ -497,7 +497,7 @@ class ClaudeApp:
             "  /plugins       Show installed plugins\n"
             "  /agents        Show running agents\n"
             "  /add-dir       Add directory to workspace\n"
-            "  /loop          Run recurring task (30s/5m/1h)\n"
+            "  /loop          Recurring task (natural language)\n"
             "  /bug           Report a bug\n"
             "  /exit          Exit Claude Code\n\n"
             "  Enter=submit  Esc+Enter=newline  Ctrl+C=cancel"
@@ -755,66 +755,84 @@ class ClaudeApp:
             self.ui.show_info(f"Session renamed to: {args.strip()}")
 
     def _cmd_loop(self, args: str = "") -> None:
-        """Run a prompt on a recurring interval: /loop 5m check deploy logs"""
-        import re
-        if not self.ui:
+        """Run a task described in natural language, repeatedly.
+
+        Usage: /loop <describe what to do>
+        The AI decides the pacing based on the task description.
+
+        Examples:
+          /loop 监控服务器状态，有变化就通知我
+          /loop 每隔几分钟检查CI是否跑完
+          /loop 持续扫描新的子域名
+
+        To stop: /loop stop
+        """
+        if not self.ui or not self.query_engine:
             return
+
         if not args.strip():
             self.ui.show_info(
-                "Usage: /loop <interval> <command>\n\n"
-                "  /loop 30s check server status\n"
-                "  /loop 5m /cost\n"
-                "  /loop 1h scan for new CVEs\n\n"
-                "Interval: 30s, 5m, 1h (min 5s)"
+                "Usage: /loop <describe your task>\n\n"
+                "  /loop 监控服务器状态，有变化就通知我\n"
+                "  /loop 每隔几分钟检查CI是否跑完\n"
+                "  /loop 持续扫描新子域名并记录结果\n\n"
+                "AI 会根据任务自动决定循环节奏。\n"
+                "/loop stop  — 停止当前循环"
             )
             return
 
-        # Check for stop
-        if args.strip().startswith("stop"):
-            loop_id = args.strip().split(maxsplit=1)[1] if len(args.strip().split()) > 1 else ""
-            loops = getattr(self, "_active_loops", {})
-            if loop_id in loops:
-                loops[loop_id].cancel()
-                del loops[loop_id]
-                self.ui.show_info(f"Loop {loop_id} stopped.")
+        # Stop
+        if args.strip().lower() in ("stop", "cancel", "kill"):
+            loop_task = getattr(self, "_loop_task", None)
+            if loop_task and not loop_task.done():
+                loop_task.cancel()
+                self._loop_task = None
+                self.ui.show_info("Loop stopped.")
             else:
-                self.ui.show_info(f"No loop found: {loop_id}. Active: {list(loops.keys()) or 'none'}")
+                self.ui.show_info("No active loop.")
             return
 
-        match = re.match(r"(\d+)([smh])\s+(.*)", args.strip())
-        if not match:
-            self.ui.show_info("Invalid format. Use: /loop <interval> <command>")
-            return
+        task_desc = args.strip()
+        self.ui.show_info(f"Loop started: {task_desc}")
 
-        amount = int(match.group(1))
-        unit = match.group(2)
-        command = match.group(3)
-        interval = amount * {"s": 1, "m": 60, "h": 3600}[unit]
+        # Wrap the user's description into a looping instruction
+        loop_prompt = (
+            f"You are running in a recurring loop. The task is:\n\n"
+            f"  {task_desc}\n\n"
+            f"Execute one iteration now. Be concise. "
+            f"When done, output [LOOP:CONTINUE] to continue the loop "
+            f"or [LOOP:STOP] if the task is complete or no longer needed."
+        )
 
-        if interval < 5:
-            self.ui.show_info("Minimum interval is 5 seconds.")
-            return
+        async def _run_loop():
+            iteration = 0
+            try:
+                while self._running:
+                    iteration += 1
+                    self.ui.display_user_message(
+                        f"[loop #{iteration}] {task_desc}"
+                    )
 
-        if not hasattr(self, "_active_loops"):
-            self._active_loops = {}
+                    result = await self.query_engine.run(loop_prompt)
 
-        loop_id = f"loop_{len(self._active_loops) + 1}"
-
-        async def _run():
-            while True:
-                await asyncio.sleep(interval)
-                try:
-                    self.ui.display_user_message(f"[{loop_id}] {command}")
-                    result = await self.query_engine.run(command)
                     had_stream = self.ui._streaming
                     self.ui.end_stream()
                     if result.text and not had_stream:
                         self.ui.display_assistant_message(result.text)
-                except asyncio.CancelledError:
-                    break
-                except Exception:
-                    pass
 
-        task = asyncio.get_event_loop().create_task(_run())
-        self._active_loops[loop_id] = task
-        self.ui.show_info(f"Loop started ({loop_id}): every {amount}{unit} → {command}")
+                    # Check if loop should stop
+                    text = result.text or ""
+                    if "[LOOP:STOP]" in text:
+                        self.ui.show_info("Loop completed — task finished.")
+                        break
+
+                    # Default: wait 30s between iterations
+                    await asyncio.sleep(30)
+
+            except asyncio.CancelledError:
+                self.ui.show_info("Loop cancelled.")
+            except Exception as e:
+                self.ui.show_error(f"Loop error: {e}")
+
+        task = asyncio.get_event_loop().create_task(_run_loop())
+        self._loop_task = task
