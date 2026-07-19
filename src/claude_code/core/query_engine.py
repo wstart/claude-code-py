@@ -152,7 +152,7 @@ class QueryEngine:
             turn += 1
             result.num_turns = turn
 
-            if self.cancel_token.is_cancelled():
+            if self.cancel_token.is_cancelled:
                 result.error = "Cancelled"
                 break
 
