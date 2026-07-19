@@ -151,9 +151,19 @@ class ClaudeApp:
     # Run modes
     # ------------------------------------------------------------------
 
-    async def run_interactive(self) -> None:
+    async def run_interactive(
+        self,
+        resume: bool = False,
+        resume_session_id: Optional[str] = None,
+    ) -> None:
         """Run the interactive terminal session."""
         await self.setup()
+
+        # Resume previous session if requested
+        if resume:
+            await self.resume_session()
+        elif resume_session_id:
+            await self.resume_session(resume_session_id)
 
         # Lazy import UI
         from claude_code.ui.app_ui import AppUI
@@ -210,8 +220,13 @@ class ClaudeApp:
                 # Run through query engine
                 result = await self.query_engine.run(user_input)
 
-                # End streaming display
+                # Check if streaming displayed anything, then end stream
+                had_stream = self.ui._streaming
                 self.ui.end_stream()
+
+                # Fallback: if streaming didn't show anything, print directly
+                if result.text and not had_stream:
+                    self.ui.display_assistant_message(result.text)
 
                 # Persist to session
                 if self.session:

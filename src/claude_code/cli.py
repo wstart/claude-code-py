@@ -269,18 +269,11 @@ async def _run_interactive_mode(
 
     app = ClaudeApp(config=config)
 
-    # Resume session if requested
+    # run_interactive() calls setup() internally
     if continue_session:
-        await app.setup()
-        await app.resume_session()
-        if app.ui is None:
-            # Setup UI manually if not done yet
-            pass
-        await app.run_interactive()
+        await app.run_interactive(resume=True)
     elif resume_session:
-        await app.setup()
-        await app.resume_session(resume_session)
-        await app.run_interactive()
+        await app.run_interactive(resume_session_id=resume_session)
     else:
         await app.run_interactive()
 

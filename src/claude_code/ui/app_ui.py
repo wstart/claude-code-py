@@ -50,7 +50,11 @@ class AppUI:
             console: Optional pre-configured Console.
         """
         self.theme = theme or get_theme("dark")
-        self.console = console or Console(theme=self.theme.rich_theme)
+        self.console = console or Console(
+            theme=self.theme.rich_theme,
+            force_terminal=True,
+            soft_wrap=True,
+        )
 
         # Initialize components
         self.renderer = RichRenderer(console=self.console, theme=self.theme)
@@ -182,19 +186,27 @@ class AppUI:
         """
         self.renderer.render_info(msg)
 
+    _streaming = False
+
     def show_stream(self, text_chunk: str) -> None:
         """Append streaming text to the current assistant response.
 
         Args:
             text_chunk: Text chunk to append.
         """
-        if not self.spinner.is_active:
+        # Hide spinner when text starts arriving
+        if self.spinner.is_active:
+            self.spinner.stop()
+        if not self._streaming:
             self.chat.start_stream()
+            self._streaming = True
         self.chat.append_stream(text_chunk)
 
     def end_stream(self) -> None:
         """Finalize streaming display."""
-        self.chat.end_stream()
+        if self._streaming:
+            self.chat.end_stream()
+            self._streaming = False
 
     def show_spinner(self, text: str = "Thinking") -> None:
         """Show a loading indicator.
