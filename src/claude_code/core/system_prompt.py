@@ -121,6 +121,24 @@ _TOOL_INSTRUCTIONS: dict[str, str] = {
         "Asks the user a clarifying question.\n"
         "Use when requirements are ambiguous and you need input before proceeding."
     ),
+    "Diagnostics": (
+        "Get compiler and linter diagnostics for a file or project.\n"
+        "Returns errors, warnings, and hints from the language server or "
+        "fallback linters (ruff, flake8, mypy, eslint, etc.)."
+    ),
+    "ExecuteCode": (
+        "Execute a code snippet in a subprocess and return stdout/stderr.\n"
+        "Supports Python (default), JavaScript, TypeScript, Ruby, Bash, Lua, "
+        "Go, and Rust. Has a configurable timeout (default 30s, max 120s)."
+    ),
+    "BashOutput": (
+        "Retrieve output from a long-running Bash command.\n"
+        "Use with the bash_id returned by Bash when running commands in background."
+    ),
+    "KillShell": (
+        "Kill a running Bash shell process.\n"
+        "Use with the bash_id returned by Bash."
+    ),
 }
 
 
