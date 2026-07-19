@@ -8,14 +8,12 @@ suitable for the multimodal API.
 from __future__ import annotations
 
 import base64
-import mimetypes
 from pathlib import Path
 from typing import Any
 
-import aiofiles
 import chardet
 
-from claude_code.tools.base import Tool, ToolContext, ToolResult
+from claude_code.tools.base import Tool, ToolResult
 
 # Maximum line length before truncation
 _MAX_LINE_LENGTH = 2000
@@ -105,8 +103,6 @@ class ReadTool(Tool):
 
     async def _read_text(self, path: Path, offset: int, limit: int) -> ToolResult:
         """Read a text file with encoding detection and line numbers."""
-        raw = await aiofiles.os.path.exists(path)  # noqa — just a warm-up
-
         try:
             raw_bytes = path.read_bytes()
         except PermissionError:

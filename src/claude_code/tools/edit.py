@@ -14,8 +14,6 @@ import re
 from pathlib import Path
 from typing import Any
 
-import aiofiles
-
 from claude_code.tools.base import Tool, ToolResult
 
 # Regex used to strip ``cat -n`` line-number prefixes that the model
@@ -104,12 +102,10 @@ class EditTool(Tool):
         old_string = _strip_line_numbers(old_string)
 
         # -- find matches -------------------------------------------------
-        result = _find_and_replace(content, old_string, new_string, replace_all)
+        new_content, error = _find_and_replace(content, old_string, new_string, replace_all)
 
-        if isinstance(result, str):
-            return ToolResult.error(result)
-
-        new_content = result
+        if error:
+            return ToolResult.error(error)
 
         if new_content == content:
             return ToolResult.success("No changes needed — old_string equals new_string.")
@@ -138,8 +134,11 @@ def _find_and_replace(
     old: str,
     new: str,
     replace_all: bool,
-) -> str | None:
-    """Return the new content string, or an error message.
+) -> tuple[str, str | None]:
+    """Return ``(new_content, error_message)``.
+
+    On success, returns ``(new_content, None)``.
+    On failure, returns ``(original_content, error_message)``.
 
     Tries exact match first, then normalised-whitespace fallback.
     """
@@ -148,11 +147,11 @@ def _find_and_replace(
     # Exact match
     if count == 1 or (replace_all and count > 0):
         if replace_all:
-            return content.replace(old, new)
-        return content.replace(old, new, 1)
+            return content.replace(old, new), None
+        return content.replace(old, new, 1), None
 
     if count > 1 and not replace_all:
-        return (
+        return content, (
             f"Found {count} occurrences of old_string. "
             "Make it more specific or set replace_all=true."
         )
@@ -163,16 +162,20 @@ def _find_and_replace(
     norm_count = norm_content.count(norm_old)
 
     if norm_count == 0:
-        return "old_string not found in file (tried exact and whitespace-normalised match)."
+        return content, (
+            "old_string not found in file "
+            "(tried exact and whitespace-normalised match)."
+        )
 
     if norm_count > 1 and not replace_all:
-        return (
+        return content, (
             f"Found {norm_count} whitespace-normalised occurrences of old_string. "
             "Make it more specific or set replace_all=true."
         )
 
     # Apply replacement using normalised positions
-    return _replace_normalised(content, old, new, replace_all)
+    result = _replace_normalised(content, old, new, replace_all)
+    return result, None
 
 
 def _replace_normalised(
@@ -189,7 +192,6 @@ def _replace_normalised(
     # Build a mapping from normalised positions to original positions
     lines = content.split("\n")
     norm_lines: list[str] = []
-    orig_line_indices: list[int] = []  # which original line each norm char came from
 
     for i, line in enumerate(lines):
         norm = " ".join(line.split())
@@ -210,7 +212,6 @@ def _replace_normalised(
     # Strategy: split both original and normalised-result into lines,
     # then for each group of lines that matched norm_old, substitute
     # the corresponding norm_new lines, keeping original indentation.
-    result_lines = norm_result.split("\n")
 
     # Simple approach: if line counts match, just replace line by line
     # preserving original indentation where possible.
@@ -228,7 +229,6 @@ def _replace_normalised(
                 if _normalise_whitespace_single(line) == _normalise_whitespace_single(o_line):
                     # Preserve original indentation
                     indent = len(line) - len(line.lstrip())
-                    new_indent = len(n_line) - len(n_line.lstrip())
                     result = result.replace(line, " " * indent + n_line.lstrip(), 1)
                     break
         return result

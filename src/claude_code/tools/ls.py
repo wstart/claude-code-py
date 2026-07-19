@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import fnmatch
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -106,7 +106,6 @@ class LSTool(Tool):
             lines.append(f"Files ({len(files)}):")
             lines.extend(files)
 
-        total = len(dirs) + len(files)
         lines.append(f"\nTotal: {len(dirs)} directories, {len(files)} files")
 
         return ToolResult.success("\n".join(lines))
@@ -134,7 +133,7 @@ def _format_size(size: int) -> str:
 
 def _format_mtime(mtime: float) -> str:
     """Format a modification timestamp."""
-    dt = datetime.fromtimestamp(mtime, tz=timezone.utc).astimezone()
+    dt = datetime.fromtimestamp(mtime, tz=UTC).astimezone()
     return dt.strftime("%Y-%m-%d %H:%M")
 
 

@@ -112,17 +112,17 @@ class MultiEditTool(Tool):
                 content = new_string
                 continue
 
-            result = _find_and_replace(content, old_string, new_string, replace_all)
+            new_content, error = _find_and_replace(content, old_string, new_string, replace_all)
 
-            if isinstance(result, str):
+            if error:
                 # Error message
-                errors.append(f"Edit {i + 1}: {result}")
+                errors.append(f"Edit {i + 1}: {error}")
             else:
-                content = result
+                content = new_content
 
         if errors:
             return ToolResult.error(
-                f"MultiEdit failed (file unchanged):\n" + "\n".join(errors)
+                "MultiEdit failed (file unchanged):\n" + "\n".join(errors)
             )
 
         if content == original_content:

@@ -24,6 +24,8 @@ class AppConfig(BaseModel):
     # API settings
     api_key: str = ""
     api_base_url: str = ""
+    base_url: str = ""  # Alias for api_base_url used by app.py
+    provider: str = "anthropic"  # anthropic | openai
     model: str = DEFAULT_MODEL
     max_tokens: int = 16384
     temperature: float = 0.0
@@ -37,6 +39,7 @@ class AppConfig(BaseModel):
 
     # Prompt overrides
     system_prompt: str = ""
+    append_system_prompt: str = ""  # Additional text appended to system prompt
     claude_md_content: str = ""
     effort: str = "medium"  # low | medium | high
 
@@ -44,6 +47,7 @@ class AppConfig(BaseModel):
     working_directory: str = ""
     additional_dirs: list[str] = Field(default_factory=list)
     allowed_dirs: list[str] = Field(default_factory=list)
+    allowed_directories: list[str] = Field(default_factory=list)  # Alias used by app.py
 
     # UI
     no_color: bool = False

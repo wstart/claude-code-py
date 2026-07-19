@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class ToolResult(BaseModel):
@@ -49,6 +49,8 @@ class ToolContext:
 
     read_files: set[str] = field(default_factory=set)
     cwd: str = field(default_factory=lambda: os.getcwd())
+    working_directory: str = field(default_factory=lambda: os.getcwd())
+    allowed_directories: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
 
     # -- helpers -----------------------------------------------------------

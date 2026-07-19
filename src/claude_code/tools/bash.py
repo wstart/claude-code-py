@@ -11,7 +11,6 @@ import asyncio
 import os
 import signal
 import time
-from pathlib import Path
 from typing import Any
 
 from claude_code.tools.base import Tool, ToolContext, ToolResult
@@ -113,14 +112,14 @@ class _PersistentShell:
                     remaining = timeout_s - elapsed
 
                     if remaining <= 0:
-                        raise asyncio.TimeoutError()
+                        raise TimeoutError()
 
                     try:
                         line_bytes = await asyncio.wait_for(
                             self._proc.stdout.readline(),
                             timeout=min(remaining, 1.0),
                         )
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         if time.monotonic() - start_time >= timeout_s:
                             raise
                         continue
@@ -145,7 +144,7 @@ class _PersistentShell:
                     output_lines.append(line)
 
                     # Safety: truncate huge output
-                    total = sum(len(l) for l in output_lines)
+                    total = sum(len(line) for line in output_lines)
                     if total > _MAX_OUTPUT_SIZE:
                         output_lines.append(
                             "\n... (output truncated at "
@@ -153,7 +152,7 @@ class _PersistentShell:
                         )
                         break
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Kill the process group
                 await self._kill()
                 output_lines.append(
@@ -192,7 +191,7 @@ class _PersistentShell:
         try:
             self._proc.terminate()
             await asyncio.wait_for(self._proc.wait(), timeout=5.0)
-        except (asyncio.TimeoutError, ProcessLookupError):
+        except (TimeoutError, ProcessLookupError):
             await self._kill()
         self._started = False
 
