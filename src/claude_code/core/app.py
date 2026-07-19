@@ -28,7 +28,9 @@ from claude_code.core.store import AppState, Store
 from claude_code.providers.base import BaseProvider
 from claude_code.tools.ask_user import AskUserTool
 from claude_code.tools.bash import BashTool
+from claude_code.tools.diagnostics import DiagnosticsTool
 from claude_code.tools.edit import EditTool
+from claude_code.tools.execute_code import ExecuteCodeTool
 from claude_code.tools.exit_plan_mode import ExitPlanModeTool
 from claude_code.tools.glob_tool import GlobTool
 from claude_code.tools.grep import GrepTool
@@ -380,6 +382,9 @@ class ClaudeApp:
         registry.register(TodoReadTool(ctx))
         registry.register(TodoWriteTool(ctx))
         registry.register(ExitPlanModeTool(ctx))
+        # IDE / Execution tools
+        registry.register(DiagnosticsTool(ctx))
+        registry.register(ExecuteCodeTool(ctx))
         registry.register(AskUserTool(ctx))
 
         return registry

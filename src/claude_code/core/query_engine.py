@@ -438,48 +438,14 @@ class QueryEngine:
         ]
 
     def _build_system_prompt(self) -> str:
-        """Assemble the system prompt from config and CLAUDE.md."""
-        parts: list[str] = []
+        """Assemble the system prompt using SystemPromptBuilder."""
+        from claude_code.core.system_prompt import SystemPromptBuilder
 
-        # Base system prompt
-        parts.append(
-            "You are Claude, an AI coding assistant made by Anthropic. "
-            "You are an interactive CLI tool that helps users with software "
-            "engineering tasks. Use the instructions below and the tools "
-            "available to you to assist the user."
+        builder = SystemPromptBuilder(
+            config=self.config,
+            tool_registry=self.tools,
         )
-
-        # Custom system prompt override
-        if self.config.system_prompt:
-            return self.config.system_prompt
-
-        # Append CLAUDE.md content
-        if self.config.claude_md_content:
-            parts.append("")
-            parts.append("## Project Instructions")
-            parts.append("")
-            parts.append(self.config.claude_md_content)
-
-        # Append additional system prompt (if set via CLI --system-prompt)
-        append_prompt = getattr(self.config, "append_system_prompt", "")
-        if append_prompt:
-            parts.append("")
-            parts.append(append_prompt)
-
-        # Add coding guidelines
-        parts.append("")
-        parts.append("## Guidelines")
-        parts.append("")
-        parts.append(
-            "- Be concise. Answer in fewer than 4 lines when possible.\n"
-            "- Use the tools available to you to help with coding tasks.\n"
-            "- Read files before editing them to understand context.\n"
-            "- Make surgical changes — don't modify unrelated code.\n"
-            "- Run tests after making changes when possible.\n"
-            "- Don't commit or push code unless asked to."
-        )
-
-        return "\n".join(parts)
+        return builder.build()
 
     def _rebuild_conversation(self, compressed_api_messages: list[dict[str, Any]]) -> None:
         """Rebuild internal conversation from compressed API messages."""
