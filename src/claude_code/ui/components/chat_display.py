@@ -94,9 +94,8 @@ class ChatDisplay:
         if not text:
             return
 
-        # Claude label
         label = Text()
-        label.append("● ", style=f"bold {s.claude_orange}")
+        label.append("Sentinel", style=f"bold {s.claude_orange}")
         self.console.print(label)
 
         # Markdown content with indentation
@@ -185,7 +184,10 @@ class ChatDisplay:
         """Prepare for streaming output."""
         self._stream_buffer = ""
         s = self.theme.scheme
-        self.console.print(Text("● ", style=f"bold {s.claude_orange}"), end="")
+        label = Text()
+        label.append("Sentinel", style=f"bold {s.claude_orange}")
+        label.append("\n", style="")
+        self.console.print(label)
 
     def append_stream(self, chunk: str) -> None:
         """Append streaming text chunk."""

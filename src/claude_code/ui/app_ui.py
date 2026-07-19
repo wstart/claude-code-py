@@ -266,10 +266,10 @@ class AppUI:
         self.console.print()
         self.console.print(
             f"  [{s.claude_orange}]●[/{s.claude_orange}] "
-            f"[bold]Claude Code[/bold] "
-            f"[dim]v0.1.0 (Python)[/dim]"
+            f"[bold]Sentinel[/bold] "
+            f"[dim]v0.1.0[/dim]"
         )
         self.console.print(
-            f"  [dim]Type a message or /help · Ctrl+C to exit[/dim]"
+            f"  [dim]Offensive security engineer · /help · Ctrl+C to exit[/dim]"
         )
         self.console.print()
