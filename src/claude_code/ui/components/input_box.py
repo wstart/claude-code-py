@@ -108,17 +108,11 @@ def _build_keybindings(on_submit: Optional[callable] = None) -> KeyBindings:
 
 
 def _build_style() -> PTStyle:
-    """Build the prompt_toolkit style.
-
-    Returns:
-        PTStyle for the input box.
-    """
-    return PTStyle(
-        [
-            ("prompt", "bold ansicyan"),
-            ("placeholder", "italic ansigray"),
-        ]
-    )
+    """Build the prompt_toolkit style."""
+    return PTStyle([
+        ("prompt", "bold #6cb6ff"),
+        ("placeholder", "italic #484f58"),
+    ])
 
 
 class InputBox:
@@ -169,7 +163,7 @@ class InputBox:
 
         try:
             result = session.prompt(
-                HTML("<prompt>❯ </prompt>"),
+                HTML("<prompt>> </prompt>"),
                 placeholder=HTML(f"<placeholder>{self._placeholder}</placeholder>"),
             )
             text = result.strip()
@@ -195,7 +189,7 @@ class InputBox:
 
         try:
             result = await session.prompt_async(
-                HTML("<prompt>❯ </prompt>"),
+                HTML("<prompt>> </prompt>"),
                 placeholder=HTML(f"<placeholder>{self._placeholder}</placeholder>"),
             )
             text = result.strip()

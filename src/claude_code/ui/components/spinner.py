@@ -93,8 +93,9 @@ class Spinner:
         minutes, seconds = divmod(int(elapsed), 60)
         time_str = f"{minutes}:{seconds:02d}" if minutes else f"{seconds}s"
 
+        s = self.theme.scheme
         display = Text()
-        display.append("⠋ ", style=f"bold {self.theme.scheme.spinner}")
-        display.append(f"{self._action}...", style=f"{self.theme.scheme.spinner}")
-        display.append(f" ({time_str})", style="dim")
+        display.append("  ◌ ", style=f"bold {s.spinner}")
+        display.append(self._action, style=s.text_secondary)
+        display.append(f"  {time_str}", style=s.text_dim)
         return display

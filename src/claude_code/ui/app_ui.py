@@ -256,19 +256,20 @@ class AppUI:
         """Clean up and shut down the UI."""
         self._running = False
         self.hide_spinner()
+        s = self.theme.scheme
         self.console.print()
-        self.console.print(
-            "[dim]Goodbye![/dim]"
-        )
+        self.console.print(f"  [dim]✦ Session ended[/dim]")
 
     def _print_welcome(self) -> None:
         """Print the welcome banner."""
+        s = self.theme.scheme
+        self.console.print()
         self.console.print(
-            "[bold bright_cyan]claude-code-py[/bold bright_cyan] "
-            "[dim]v0.1.0[/dim]"
+            f"  [{s.claude_orange}]●[/{s.claude_orange}] "
+            f"[bold]Claude Code[/bold] "
+            f"[dim]v0.1.0 (Python)[/dim]"
         )
         self.console.print(
-            "[dim]Type a message or /help for commands. "
-            "Ctrl+C to exit.[/dim]"
+            f"  [dim]Type a message or /help · Ctrl+C to exit[/dim]"
         )
         self.console.print()
