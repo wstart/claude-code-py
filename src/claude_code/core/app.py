@@ -26,14 +26,23 @@ from claude_code.core.query_engine import QueryEngine, QueryEngineCallbacks, Que
 from claude_code.core.session import Session, SessionManager
 from claude_code.core.store import AppState, Store
 from claude_code.providers.base import BaseProvider
+from claude_code.tools.ask_user import AskUserTool
 from claude_code.tools.bash import BashTool
 from claude_code.tools.edit import EditTool
+from claude_code.tools.exit_plan_mode import ExitPlanModeTool
 from claude_code.tools.glob_tool import GlobTool
 from claude_code.tools.grep import GrepTool
 from claude_code.tools.ls import LSTool
 from claude_code.tools.multi_edit import MultiEditTool
+from claude_code.tools.notebook_edit import NotebookEditTool
+from claude_code.tools.notebook_read import NotebookReadTool
 from claude_code.tools.read import ReadTool
 from claude_code.tools.registry import ToolContext, ToolRegistry
+from claude_code.tools.task import TaskTool
+from claude_code.tools.todo_read import TodoReadTool
+from claude_code.tools.todo_write import TodoWriteTool
+from claude_code.tools.web_fetch import WebFetchTool
+from claude_code.tools.web_search import WebSearchTool
 from claude_code.tools.write import WriteTool
 
 logger = logging.getLogger(__name__)
@@ -58,6 +67,8 @@ class ClaudeApp:
         self.provider: Optional[BaseProvider] = None
         self.tool_registry: Optional[ToolRegistry] = None
         self.query_engine: Optional[QueryEngine] = None
+        self.permission_manager: Any = None
+        self.hook_manager: Any = None
         self.ui: Any = None  # AppUI — lazy to avoid import cycles
 
         self._running = False
@@ -75,6 +86,16 @@ class ClaudeApp:
 
         # Tools
         self.tool_registry = self._create_tool_registry()
+
+        # Permissions
+        from claude_code.permissions.manager import PermissionManager
+
+        self.permission_manager = PermissionManager(config=self.config)
+
+        # Hooks
+        from claude_code.hooks.manager import HookManager
+
+        self.hook_manager = HookManager(config=getattr(self.config, "hooks", {}))
 
         # Query engine
         self.query_engine = QueryEngine(
@@ -340,6 +361,7 @@ class ClaudeApp:
         ctx = ToolContext(cwd=self.config.working_directory)
         registry = ToolRegistry(context=ctx)
 
+        # Phase 1: File + Shell tools
         registry.register(ReadTool(ctx))
         registry.register(WriteTool(ctx))
         registry.register(EditTool(ctx))
@@ -348,6 +370,17 @@ class ClaudeApp:
         registry.register(GrepTool(ctx))
         registry.register(LSTool(ctx))
         registry.register(BashTool(ctx))
+
+        # Phase 2: Notebook, Web, Agent, Planning tools
+        registry.register(NotebookReadTool(ctx))
+        registry.register(NotebookEditTool(ctx))
+        registry.register(WebFetchTool(ctx))
+        registry.register(WebSearchTool(ctx))
+        registry.register(TaskTool(ctx))
+        registry.register(TodoReadTool(ctx))
+        registry.register(TodoWriteTool(ctx))
+        registry.register(ExitPlanModeTool(ctx))
+        registry.register(AskUserTool(ctx))
 
         return registry
 
