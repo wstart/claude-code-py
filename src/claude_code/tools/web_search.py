@@ -12,8 +12,6 @@ from __future__ import annotations
 from typing import Any
 from urllib.parse import urlparse
 
-import httpx
-
 from claude_code.tools.base import Tool, ToolResult
 
 # DuckDuckGo Instant Answer API endpoint
@@ -56,6 +54,8 @@ class WebSearchTool(Tool):
     }
 
     async def execute(self, **kwargs: Any) -> ToolResult:
+        import httpx
+
         query: str = kwargs["query"]
         allowed_domains: list[str] | None = kwargs.get("allowed_domains")
         blocked_domains: list[str] | None = kwargs.get("blocked_domains")
@@ -110,6 +110,8 @@ async def _search_ddg(query: str) -> list[dict[str, str]]:
 
     Returns a list of dicts with keys: title, url, snippet.
     """
+    import httpx
+
     params = {
         "q": query,
         "format": "json",

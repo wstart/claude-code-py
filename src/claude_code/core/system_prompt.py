@@ -355,12 +355,17 @@ class SystemPromptBuilder:
         wd = self.config.working_directory or os.getcwd()
         lines.append(f"- Working Directory: {wd}")
 
-        # Git context
-        git_lines = self._git_context(wd)
-        if git_lines:
+        # Git context — wrapped in try/except for speed and robustness
+        try:
+            git_lines = self._git_context(wd)
+            if git_lines:
+                lines.append("")
+                lines.append("### Git Status")
+                lines.extend(git_lines)
+        except Exception:
             lines.append("")
             lines.append("### Git Status")
-            lines.extend(git_lines)
+            lines.append("- Git: unavailable")
 
         # Project structure hint
         structure = self._project_structure_hint(wd)

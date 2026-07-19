@@ -15,8 +15,7 @@ Quick-start::
     result = await registry.execute("Read", {"file_path": "/tmp/hello.py"})
 """
 
-from claude_code.tools.base import Tool, ToolContext, ToolResult
-from claude_code.tools.registry import ToolRegistry, ToolRegistryError
+from __future__ import annotations
 
 __all__ = [
     "Tool",
@@ -26,6 +25,25 @@ __all__ = [
     "ToolResult",
     "create_default_registry",
 ]
+
+
+def __getattr__(name: str):
+    """Lazy-load public API symbols on first access."""
+    _lazy = {
+        "Tool": ("claude_code.tools.base", "Tool"),
+        "ToolContext": ("claude_code.tools.base", "ToolContext"),
+        "ToolResult": ("claude_code.tools.base", "ToolResult"),
+        "ToolRegistry": ("claude_code.tools.registry", "ToolRegistry"),
+        "ToolRegistryError": ("claude_code.tools.registry", "ToolRegistryError"),
+    }
+    if name in _lazy:
+        import importlib
+        module_path, attr = _lazy[name]
+        module = importlib.import_module(module_path)
+        value = getattr(module, attr)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def create_default_registry(context: ToolContext | None = None) -> ToolRegistry:

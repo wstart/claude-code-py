@@ -11,8 +11,6 @@ import base64
 from pathlib import Path
 from typing import Any
 
-import chardet
-
 from claude_code.tools.base import Tool, ToolResult
 
 # Maximum line length before truncation
@@ -103,6 +101,8 @@ class ReadTool(Tool):
 
     async def _read_text(self, path: Path, offset: int, limit: int) -> ToolResult:
         """Read a text file with encoding detection and line numbers."""
+        import chardet
+
         try:
             raw_bytes = path.read_bytes()
         except PermissionError:

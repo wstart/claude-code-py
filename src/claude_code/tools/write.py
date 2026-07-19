@@ -11,8 +11,6 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-import aiofiles
-
 from claude_code.tools.base import Tool, ToolResult
 
 
@@ -46,6 +44,8 @@ class WriteTool(Tool):
     }
 
     async def execute(self, **kwargs: Any) -> ToolResult:
+        import aiofiles
+
         file_path_str: str = kwargs["file_path"]
         content: str = kwargs["content"]
 

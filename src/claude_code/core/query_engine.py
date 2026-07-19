@@ -122,8 +122,8 @@ class QueryEngine:
         self.usage_tracker = UsageTracker()
         self.cancel_token = CancelToken()
 
-        # Build system prompt
-        self._system_prompt = self._build_system_prompt()
+        # Lazy system prompt — built on first API call, not at init
+        self._system_prompt: Optional[str] = None
 
         # Limits
         self._max_turns: int = config.max_turns or 50
@@ -262,7 +262,7 @@ class QueryEngine:
 
     def get_system_prompt(self) -> str:
         """Return the current system prompt."""
-        return self._system_prompt
+        return self._get_system_prompt()
 
     # ------------------------------------------------------------------
     # Private — Provider call
@@ -279,7 +279,7 @@ class QueryEngine:
         try:
             response_stream = await self.provider.create_message(
                 messages=api_messages,
-                system=self._system_prompt,
+                system=self._get_system_prompt(),
                 tools=tool_defs if tool_defs else None,
                 model=self.config.model,
                 max_tokens=self.config.max_tokens or 16384,
@@ -436,6 +436,12 @@ class QueryEngine:
             )
             for td in self.tools.get_definitions()
         ]
+
+    def _get_system_prompt(self) -> str:
+        """Return the system prompt, building it lazily on first access."""
+        if self._system_prompt is None:
+            self._system_prompt = self._build_system_prompt()
+        return self._system_prompt
 
     def _build_system_prompt(self) -> str:
         """Assemble the system prompt using SystemPromptBuilder."""

@@ -11,8 +11,6 @@ import time
 from html.parser import HTMLParser
 from typing import Any
 
-import httpx
-
 from claude_code.tools.base import Tool, ToolResult
 
 # Cache TTL in seconds (15 minutes)
@@ -55,6 +53,8 @@ class WebFetchTool(Tool):
     }
 
     async def execute(self, **kwargs: Any) -> ToolResult:
+        import httpx
+
         url: str = kwargs["url"]
         prompt: str = kwargs["prompt"]
 
