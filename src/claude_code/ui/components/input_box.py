@@ -99,10 +99,8 @@ def _build_keybindings(on_submit: Optional[callable] = None) -> KeyBindings:
 
     @bindings.add("c-c")
     def _cancel(event):
-        """Cancel input on Ctrl+C."""
-        event.current_buffer.reset()
-        if on_submit:
-            on_submit(None)
+        """Exit on Ctrl+C."""
+        event.app.exit(exception=KeyboardInterrupt())
 
     return bindings
 

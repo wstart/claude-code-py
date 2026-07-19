@@ -191,6 +191,15 @@ class ClaudeApp:
 
         self._running = True
 
+        # Install Ctrl+C handler — first press exits cleanly
+        import signal
+
+        def _sigint_handler(sig, frame):
+            self._running = False
+            raise KeyboardInterrupt
+
+        signal.signal(signal.SIGINT, _sigint_handler)
+
         try:
             self.ui._print_welcome()
 
@@ -218,7 +227,14 @@ class ClaudeApp:
                 self.ui.display_user_message(user_input)
 
                 # Run through query engine
-                result = await self.query_engine.run(user_input)
+                try:
+                    result = await self.query_engine.run(user_input)
+                except KeyboardInterrupt:
+                    # Ctrl+C during API call — cancel and return to prompt
+                    self.query_engine.cancel()
+                    self.ui.end_stream()
+                    self.ui.show_info("Cancelled.")
+                    continue
 
                 # Check if streaming displayed anything, then end stream
                 had_stream = self.ui._streaming
@@ -241,7 +257,10 @@ class ClaudeApp:
                 if result.error:
                     self.ui.show_error(result.error)
 
+        except KeyboardInterrupt:
+            pass  # Clean exit on Ctrl+C
         finally:
+            signal.signal(signal.SIGINT, signal.default_int_handler)
             if self.ui:
                 self.ui.shutdown()
             await self.teardown()
