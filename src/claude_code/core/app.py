@@ -298,6 +298,13 @@ class ClaudeApp:
                 else:
                     msg = Message(role=role, content=content)
                 conv.add_message(msg)
+                # Display history in UI
+                if self.ui:
+                    text = content if isinstance(content, str) else str(content)
+                    if role == "user":
+                        self.ui.display_user_message(text)
+                    elif role == "assistant":
+                        self.ui.display_assistant_message(text)
             self.query_engine.conversation = conv
 
         logger.info("Resumed session: %s (%d messages)", loaded.metadata.id, len(loaded.messages))
@@ -594,6 +601,7 @@ class ClaudeApp:
             return
         self.session = loaded
         from claude_code.core.message import Conversation, Message
+        from claude_code.ui.components.chat_display import DisplayMessage, MessageRole
         conv = Conversation()
         for msg_data in loaded.messages:
             role = msg_data.get("role", "user")
@@ -603,6 +611,12 @@ class ClaudeApp:
             else:
                 msg = Message(role=role, content=content)
             conv.add_message(msg)
+            # Display the message in the UI
+            text = content if isinstance(content, str) else str(content)
+            if role == "user":
+                self.ui.display_user_message(text)
+            elif role == "assistant":
+                self.ui.display_assistant_message(text)
         self.query_engine.conversation = conv
         self.ui.show_info(
             f"Resumed session {loaded.metadata.id[:8]}... "
