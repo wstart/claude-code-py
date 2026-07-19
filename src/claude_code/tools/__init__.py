@@ -36,10 +36,12 @@ def create_default_registry(context: ToolContext | None = None) -> ToolRegistry:
     """
     from claude_code.tools.ask_user import AskUserTool
     from claude_code.tools.bash import BashTool
+    from claude_code.tools.bash_output import BashOutputTool
     from claude_code.tools.edit import EditTool
     from claude_code.tools.exit_plan_mode import ExitPlanModeTool
     from claude_code.tools.glob_tool import GlobTool
     from claude_code.tools.grep import GrepTool
+    from claude_code.tools.kill_shell import KillShellTool
     from claude_code.tools.ls import LSTool
     from claude_code.tools.multi_edit import MultiEditTool
     from claude_code.tools.notebook_edit import NotebookEditTool
@@ -69,6 +71,8 @@ def create_default_registry(context: ToolContext | None = None) -> ToolRegistry:
         LSTool,
         # Shell
         BashTool,
+        BashOutputTool,
+        KillShellTool,
         # Web tools
         WebFetchTool,
         WebSearchTool,

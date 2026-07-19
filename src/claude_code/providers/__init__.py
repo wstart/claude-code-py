@@ -84,5 +84,20 @@ def create_provider(
         from claude_code.providers.openai_compat import OpenAICompatProvider
 
         return OpenAICompatProvider(**kwargs)
+    elif provider == "bedrock":
+        from claude_code.providers.bedrock import BedrockProvider
+
+        return BedrockProvider(**kwargs)
+    elif provider == "vertex":
+        from claude_code.providers.vertex import VertexProvider
+
+        return VertexProvider(**kwargs)
+    elif provider == "azure":
+        from claude_code.providers.azure import AzureProvider
+
+        return AzureProvider(**kwargs)
     else:
-        raise ValueError(f"Unknown provider: {provider!r}. Use 'anthropic' or 'openai'.")
+        raise ValueError(
+            f"Unknown provider: {provider!r}. "
+            "Use 'anthropic', 'openai', 'bedrock', 'vertex', or 'azure'."
+        )

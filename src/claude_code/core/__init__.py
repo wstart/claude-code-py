@@ -14,6 +14,7 @@ from claude_code.core.message import (
 )
 from claude_code.core.session import Session, SessionManager, SessionMetadata
 from claude_code.core.store import AppState, Store, get_store
+from claude_code.core.system_prompt import SystemPromptBuilder
 
 __all__ = [
     "ClaudeApp",
@@ -25,6 +26,7 @@ __all__ = [
     "Session",
     "SessionManager",
     "SessionMetadata",
+    "SystemPromptBuilder",
     "TextContent",
     "ToolResultContent",
     "ToolUseContent",

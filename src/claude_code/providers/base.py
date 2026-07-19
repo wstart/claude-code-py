@@ -112,6 +112,22 @@ MODEL_ALIASES: dict[str, dict[str, str]] = {
         "o1": "o1",
         "o3-mini": "o3-mini",
     },
+    "bedrock": {
+        "sonnet": "anthropic.claude-sonnet-4-20250514-v1:0",
+        "opus": "anthropic.claude-opus-4-20250514-v1:0",
+        "haiku": "anthropic.claude-haiku-4-20250414-v1:0",
+    },
+    "vertex": {
+        "sonnet": "claude-sonnet-4@20250514",
+        "opus": "claude-opus-4@20250514",
+        "haiku": "claude-haiku-4@20250414",
+    },
+    "azure": {
+        "gpt-4o": "gpt-4o",
+        "gpt-4o-mini": "gpt-4o-mini",
+        "o1": "o1",
+        "o3-mini": "o3-mini",
+    },
 }
 
 
