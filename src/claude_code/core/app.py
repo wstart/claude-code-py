@@ -463,6 +463,7 @@ class ClaudeApp:
             "/init": self._cmd_init,
             "/add-dir": self._cmd_add_dir,
             "/rename": self._cmd_rename,
+            "/loop": self._cmd_loop,
             "/exit": self._cmd_exit,
             "/quit": self._cmd_exit,
         }
@@ -496,6 +497,7 @@ class ClaudeApp:
             "  /plugins       Show installed plugins\n"
             "  /agents        Show running agents\n"
             "  /add-dir       Add directory to workspace\n"
+            "  /loop          Run recurring task (30s/5m/1h)\n"
             "  /bug           Report a bug\n"
             "  /exit          Exit Claude Code\n\n"
             "  Enter=submit  Esc+Enter=newline  Ctrl+C=cancel"
@@ -751,3 +753,68 @@ class ClaudeApp:
             self.session.metadata.name = args.strip()
             self.session_manager.save_session(self.session)
             self.ui.show_info(f"Session renamed to: {args.strip()}")
+
+    def _cmd_loop(self, args: str = "") -> None:
+        """Run a prompt on a recurring interval: /loop 5m check deploy logs"""
+        import re
+        if not self.ui:
+            return
+        if not args.strip():
+            self.ui.show_info(
+                "Usage: /loop <interval> <command>\n\n"
+                "  /loop 30s check server status\n"
+                "  /loop 5m /cost\n"
+                "  /loop 1h scan for new CVEs\n\n"
+                "Interval: 30s, 5m, 1h (min 5s)"
+            )
+            return
+
+        # Check for stop
+        if args.strip().startswith("stop"):
+            loop_id = args.strip().split(maxsplit=1)[1] if len(args.strip().split()) > 1 else ""
+            loops = getattr(self, "_active_loops", {})
+            if loop_id in loops:
+                loops[loop_id].cancel()
+                del loops[loop_id]
+                self.ui.show_info(f"Loop {loop_id} stopped.")
+            else:
+                self.ui.show_info(f"No loop found: {loop_id}. Active: {list(loops.keys()) or 'none'}")
+            return
+
+        match = re.match(r"(\d+)([smh])\s+(.*)", args.strip())
+        if not match:
+            self.ui.show_info("Invalid format. Use: /loop <interval> <command>")
+            return
+
+        amount = int(match.group(1))
+        unit = match.group(2)
+        command = match.group(3)
+        interval = amount * {"s": 1, "m": 60, "h": 3600}[unit]
+
+        if interval < 5:
+            self.ui.show_info("Minimum interval is 5 seconds.")
+            return
+
+        if not hasattr(self, "_active_loops"):
+            self._active_loops = {}
+
+        loop_id = f"loop_{len(self._active_loops) + 1}"
+
+        async def _run():
+            while True:
+                await asyncio.sleep(interval)
+                try:
+                    self.ui.display_user_message(f"[{loop_id}] {command}")
+                    result = await self.query_engine.run(command)
+                    had_stream = self.ui._streaming
+                    self.ui.end_stream()
+                    if result.text and not had_stream:
+                        self.ui.display_assistant_message(result.text)
+                except asyncio.CancelledError:
+                    break
+                except Exception:
+                    pass
+
+        task = asyncio.get_event_loop().create_task(_run())
+        self._active_loops[loop_id] = task
+        self.ui.show_info(f"Loop started ({loop_id}): every {amount}{unit} → {command}")
