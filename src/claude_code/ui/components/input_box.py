@@ -106,10 +106,12 @@ def _build_keybindings(on_submit: Optional[callable] = None) -> KeyBindings:
 
 
 def _build_style() -> PTStyle:
-    """Build the prompt_toolkit style."""
+    """Build the prompt_toolkit style — cyberpunk terminal."""
     return PTStyle([
-        ("prompt", "bold #6cb6ff"),
-        ("placeholder", "italic #484f58"),
+        ("prompt", "bold #00e5ff"),
+        ("placeholder", "italic #475569"),
+        ("completion-menu.completion", "bg:#0f172a #f1f5f9"),
+        ("completion-menu.completion.current", "bg:#ff3e3e #ffffff"),
     ])
 
 
@@ -126,7 +128,7 @@ class InputBox:
 
     def __init__(
         self,
-        placeholder: str = "Ask Claude anything...",
+        placeholder: str = "enter command or question...",
         commands: Optional[list[str]] = None,
     ) -> None:
         """Initialize the input box.
@@ -161,7 +163,7 @@ class InputBox:
 
         try:
             result = session.prompt(
-                HTML("<prompt>> </prompt>"),
+                HTML("<prompt>▎</prompt>"),
                 placeholder=HTML(f"<placeholder>{self._placeholder}</placeholder>"),
             )
             text = result.strip()
@@ -187,7 +189,7 @@ class InputBox:
 
         try:
             result = await session.prompt_async(
-                HTML("<prompt>> </prompt>"),
+                HTML("<prompt>▎</prompt>"),
                 placeholder=HTML(f"<placeholder>{self._placeholder}</placeholder>"),
             )
             text = result.strip()

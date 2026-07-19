@@ -258,18 +258,24 @@ class AppUI:
         self.hide_spinner()
         s = self.theme.scheme
         self.console.print()
-        self.console.print(f"  [dim]✦ Session ended[/dim]")
+        self.console.print(f"  [{s.text_dim}]── session ended ──[/{s.text_dim}]")
+        self.console.print()
 
     def _print_welcome(self) -> None:
-        """Print the welcome banner."""
+        """Print the welcome banner — cyberpunk style."""
         s = self.theme.scheme
         self.console.print()
         self.console.print(
-            f"  [{s.claude_orange}]●[/{s.claude_orange}] "
-            f"[bold]AKA[/bold] "
-            f"[dim]v0.1.0[/dim]"
+            f"  [{s.aka_red}]▄▄▄▄▄[/{s.aka_red}]  "
+            f"[bold {s.aka_red}]AKA[/bold {s.aka_red}]  "
+            f"[{s.text_dim}]v0.1.0[/{s.text_dim}]"
         )
         self.console.print(
-            f"  [dim]Offensive security engineer · /help · Ctrl+C to exit[/dim]"
+            f"  [{s.aka_red}]█▀▀▀█[/{s.aka_red}]  "
+            f"[{s.text_secondary}]reverse engineer[/{s.text_secondary}]"
+        )
+        self.console.print(
+            f"  [{s.aka_red}]▀▀▀▀▀[/{s.aka_red}]  "
+            f"[{s.text_dim}]/help · Ctrl+C[/{s.text_dim}]"
         )
         self.console.print()

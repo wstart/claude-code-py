@@ -53,7 +53,7 @@ class ToolOutput:
             name: Tool name.
             params: Tool parameters.
         """
-        color = self.theme.get_tool_style(name)
+        color = self.theme.get_tool_color(name)
         param_text = self._format_params(params)
 
         content = Text()
@@ -90,7 +90,7 @@ class ToolOutput:
             icon = "✗"
             text_style = "red"
         else:
-            color = self.theme.get_tool_style(name)
+            color = self.theme.get_tool_color(name)
             icon = "✓"
             text_style = "dim"
 
