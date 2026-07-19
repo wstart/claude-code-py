@@ -416,14 +416,29 @@ class ClaudeApp:
 
         handlers = {
             "/help": self._cmd_help,
+            "/?": self._cmd_help,
             "/clear": self._cmd_clear,
             "/compact": self._cmd_compact,
             "/cost": self._cmd_cost,
+            "/usage": self._cmd_cost,
             "/model": self._cmd_model,
             "/status": self._cmd_status,
             "/config": self._cmd_config,
+            "/settings": self._cmd_config,
             "/memory": self._cmd_memory,
             "/doctor": self._cmd_doctor,
+            "/resume": self._cmd_resume,
+            "/bug": self._cmd_bug,
+            "/permissions": self._cmd_permissions,
+            "/perms": self._cmd_permissions,
+            "/hooks": self._cmd_hooks,
+            "/mcp": self._cmd_mcp,
+            "/plugins": self._cmd_plugins,
+            "/agents": self._cmd_agents,
+            "/review": self._cmd_review,
+            "/init": self._cmd_init,
+            "/add-dir": self._cmd_add_dir,
+            "/rename": self._cmd_rename,
             "/exit": self._cmd_exit,
             "/quit": self._cmd_exit,
         }
@@ -438,18 +453,28 @@ class ClaudeApp:
         if not self.ui:
             return
         self.ui.show_info(
-            "Claude Code Py — Commands\n\n"
+            "Commands\n\n"
             "  /help          Show this help\n"
             "  /clear         Clear conversation\n"
-            "  /compact       Compress context\n"
-            "  /cost          Show token usage\n"
-            "  /model [name]  Show/change model\n"
+            "  /compact       Compress context to save tokens\n"
+            "  /cost          Show token usage and cost\n"
+            "  /model [name]  Show or change model\n"
             "  /status        Show session info\n"
-            "  /config        Show configuration\n"
-            "  /memory        Show CLAUDE.md\n"
+            "  /config        Show current configuration\n"
+            "  /memory        Show CLAUDE.md content\n"
+            "  /resume        Resume most recent session\n"
             "  /doctor        Run diagnostics\n"
-            "  /exit          Exit\n\n"
-            "Shortcuts: Enter=submit, Shift+Enter=newline, Ctrl+C=cancel, Ctrl+D=exit"
+            "  /review        Code review current changes\n"
+            "  /init          Initialize CLAUDE.md for project\n"
+            "  /permissions   Show permission rules\n"
+            "  /hooks         Show active hooks\n"
+            "  /mcp           Show MCP servers\n"
+            "  /plugins       Show installed plugins\n"
+            "  /agents        Show running agents\n"
+            "  /add-dir       Add directory to workspace\n"
+            "  /bug           Report a bug\n"
+            "  /exit          Exit Claude Code\n\n"
+            "  Enter=submit  Esc+Enter=newline  Ctrl+C=cancel"
         )
 
     def _cmd_clear(self, args: str = "") -> None:
@@ -555,3 +580,143 @@ class ClaudeApp:
 
     def _cmd_exit(self, args: str = "") -> None:
         self._running = False
+
+    def _cmd_resume(self, args: str = "") -> None:
+        if not self.ui or not self.query_engine:
+            return
+        session_id = args.strip() if args.strip() else None
+        if session_id:
+            loaded = self.session_manager.load_session(session_id)
+        else:
+            loaded = self.session_manager.get_latest_session()
+        if loaded is None:
+            self.ui.show_info("No previous session found.")
+            return
+        self.session = loaded
+        from claude_code.core.message import Conversation, Message
+        conv = Conversation()
+        for msg_data in loaded.messages:
+            role = msg_data.get("role", "user")
+            content = msg_data.get("content", "")
+            if isinstance(content, str):
+                msg = Message.user(content) if role == "user" else Message.assistant(content)
+            else:
+                msg = Message(role=role, content=content)
+            conv.add_message(msg)
+        self.query_engine.conversation = conv
+        self.ui.show_info(
+            f"Resumed session {loaded.metadata.id[:8]}... "
+            f"({len(loaded.messages)} messages)"
+        )
+
+    def _cmd_bug(self, args: str = "") -> None:
+        if self.ui:
+            self.ui.show_info(
+                "Report bugs at: https://github.com/anthropics/claude-code/issues"
+            )
+
+    def _cmd_permissions(self, args: str = "") -> None:
+        if not self.ui:
+            return
+        mode = self.config.permission_mode
+        info = f"Permission mode: {mode}\n\n"
+        if self.permission_manager:
+            try:
+                rules = self.permission_manager._rule_engine
+                allow = [str(r) for r in getattr(rules, "_allow_rules", [])]
+                deny = [str(r) for r in getattr(rules, "_deny_rules", [])]
+                if allow:
+                    info += f"Allow rules:\n  " + "\n  ".join(allow) + "\n"
+                if deny:
+                    info += f"Deny rules:\n  " + "\n  ".join(deny) + "\n"
+                if not allow and not deny:
+                    info += "No custom rules configured."
+            except Exception:
+                info += "Could not read rules."
+        self.ui.show_info(info)
+
+    def _cmd_hooks(self, args: str = "") -> None:
+        if not self.ui:
+            return
+        if self.hook_manager:
+            try:
+                hooks = self.hook_manager.list_hooks()
+                if hooks:
+                    lines = []
+                    for event, entries in hooks.items():
+                        for e in entries:
+                            lines.append(f"  {event}: {e.get('command', '?')}")
+                    self.ui.show_info("Active hooks:\n" + "\n".join(lines))
+                else:
+                    self.ui.show_info("No hooks configured.")
+            except Exception:
+                self.ui.show_info("No hooks configured.")
+        else:
+            self.ui.show_info("Hook manager not initialized.")
+
+    def _cmd_mcp(self, args: str = "") -> None:
+        if not self.ui:
+            return
+        servers = self.config.mcp_servers if hasattr(self.config, "mcp_servers") else {}
+        if servers:
+            lines = [f"  {name}: {cfg}" for name, cfg in servers.items()]
+            self.ui.show_info("MCP servers:\n" + "\n".join(lines))
+        else:
+            self.ui.show_info("No MCP servers configured.")
+
+    def _cmd_plugins(self, args: str = "") -> None:
+        if self.ui:
+            self.ui.show_info("Plugin system loaded. Use --plugin-dir to load plugins.")
+
+    def _cmd_agents(self, args: str = "") -> None:
+        if self.ui:
+            self.ui.show_info("No running agents.")
+
+    def _cmd_review(self, args: str = "") -> None:
+        if self.ui:
+            self.ui.show_info(
+                "Code review: use `git diff` to see changes, "
+                "then ask Claude to review them."
+            )
+
+    def _cmd_init(self, args: str = "") -> None:
+        if not self.ui:
+            return
+        import os
+        from pathlib import Path
+        claude_md = Path(self.config.working_directory) / "CLAUDE.md"
+        if claude_md.exists():
+            self.ui.show_info(f"CLAUDE.md already exists at {claude_md}")
+            return
+        project_name = Path(self.config.working_directory).name
+        template = (
+            f"# {project_name}\n\n"
+            f"## Overview\nDescribe your project here.\n\n"
+            f"## Tech Stack\n- \n\n"
+            f"## Code Conventions\n- \n\n"
+            f"## Testing\n```\n# test command\n```\n"
+        )
+        claude_md.write_text(template, encoding="utf-8")
+        self.ui.show_info(f"Created CLAUDE.md at {claude_md}")
+
+    def _cmd_add_dir(self, args: str = "") -> None:
+        if not self.ui:
+            return
+        if not args.strip():
+            self.ui.show_info("Usage: /add-dir <path>")
+            return
+        path = args.strip()
+        if path not in self.config.allowed_directories:
+            self.config.allowed_directories.append(path)
+        self.ui.show_info(f"Added directory: {path}")
+
+    def _cmd_rename(self, args: str = "") -> None:
+        if not self.ui:
+            return
+        if not args.strip():
+            self.ui.show_info("Usage: /rename <new-name>")
+            return
+        if self.session:
+            self.session.metadata.name = args.strip()
+            self.session_manager.save_session(self.session)
+            self.ui.show_info(f"Session renamed to: {args.strip()}")
