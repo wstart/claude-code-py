@@ -80,10 +80,11 @@ class ChatDisplay:
     # ------------------------------------------------------------------
 
     def _render_user(self, text: str) -> None:
+        """Render user input — only used for session resume history."""
         s = self.theme.scheme
         label = Text()
-        label.append("▎ ", style=f"bold {s.user_cyan}")
-        label.append(text, style=s.text_primary)
+        label.append("❯ ", style=f"bold {s.user_cyan}")
+        label.append(text, style=s.text_secondary)
         self.console.print(label)
 
     # ------------------------------------------------------------------

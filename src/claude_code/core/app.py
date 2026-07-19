@@ -223,10 +223,8 @@ class ClaudeApp:
                         self.ui.show_info(f"Unknown command: {user_input}")
                     continue
 
-                # Display user message
-                self.ui.display_user_message(user_input)
-
                 # Run through query engine
+                # (user input already displayed by prompt_toolkit)
                 try:
                     result = await self.query_engine.run(user_input)
                 except KeyboardInterrupt:

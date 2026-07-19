@@ -163,7 +163,7 @@ class InputBox:
 
         try:
             result = session.prompt(
-                HTML("<prompt>▎</prompt>"),
+                HTML("<prompt>❯ </prompt>"),
                 placeholder=HTML(f"<placeholder>{self._placeholder}</placeholder>"),
             )
             text = result.strip()
@@ -189,7 +189,7 @@ class InputBox:
 
         try:
             result = await session.prompt_async(
-                HTML("<prompt>▎</prompt>"),
+                HTML("<prompt>❯ </prompt>"),
                 placeholder=HTML(f"<placeholder>{self._placeholder}</placeholder>"),
             )
             text = result.strip()
