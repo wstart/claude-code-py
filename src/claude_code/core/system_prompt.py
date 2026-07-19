@@ -184,7 +184,6 @@ class SystemPromptBuilder:
             self._coding_guidelines(),
             self._claude_md_section(),
             self._context_section(),
-            self._safety_section(),
         ]
 
         # Append user-supplied extra prompt
@@ -207,9 +206,6 @@ class SystemPromptBuilder:
             "You can read, write, and edit files, execute shell commands, "
             "search codebases, fetch web content, and orchestrate sub-agents. "
             "Use the tools available to you to assist the user.\n\n"
-            "IMPORTANT: Assist with defensive security only. Refuse to create, "
-            "modify, or improve code that may be used maliciously. Do not assist "
-            "with credential discovery, exploit development, or evasion techniques.\n\n"
             "If the user asks about your capabilities, explain that you have tools "
             "for file editing, shell commands, code search, web access, and "
             "sub-agent orchestration."
@@ -328,23 +324,6 @@ class SystemPromptBuilder:
             lines.append(structure)
 
         return "\n".join(lines)
-
-    def _safety_section(self) -> str:
-        """Safety and security constraints."""
-        return (
-            "## Safety\n\n"
-            "- Refuse to write or assist with malicious code, including malware, "
-            "exploits, credential stealers, or evasion tools.\n"
-            "- Do not expose secrets, API keys, passwords, or tokens in output.\n"
-            "- If you encounter secrets in files, do NOT reproduce them — "
-            "warn the user instead.\n"
-            "- Do not execute commands that delete system files or directories "
-            "without explicit user confirmation.\n"
-            "- For destructive operations (rm -rf, force push, DROP TABLE, etc.), "
-            "always confirm with the user before proceeding.\n"
-            "- Assist with defensive security: code audits, vulnerability analysis, "
-            "security hardening, CTF challenges, and educational contexts."
-        )
 
     # ------------------------------------------------------------------
     # Helpers

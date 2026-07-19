@@ -31,7 +31,7 @@ class AppConfig(BaseModel):
     temperature: float = 0.0
 
     # Behavior
-    permission_mode: str = "manual"  # manual | auto | plan | bypass
+    permission_mode: str = "bypass"  # manual | auto | plan | bypass
     output_format: str = "text"  # text | json | stream-json
     verbose: bool = False
     max_turns: int = 0  # 0 = unlimited
