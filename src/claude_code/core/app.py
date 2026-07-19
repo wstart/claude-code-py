@@ -137,7 +137,7 @@ class ClaudeApp:
 
         self.ui = AppUI(
             model_name=self.config.model or "claude-sonnet-4-20250514",
-            session_id=self.session.session_id if self.session else "unknown",
+            session_id=self.session.metadata.id if self.session else "unknown",
             working_directory=self.config.working_directory,
         )
 
@@ -259,7 +259,7 @@ class ClaudeApp:
                 conv.add_message(msg)
             self.query_engine.conversation = conv
 
-        logger.info("Resumed session: %s (%d messages)", loaded.session_id, len(loaded.messages))
+        logger.info("Resumed session: %s (%d messages)", loaded.metadata.id, len(loaded.messages))
 
     # ------------------------------------------------------------------
     # UI callbacks (thin wrappers that guard against None ui)
@@ -436,7 +436,7 @@ class ClaudeApp:
             return
         cost = self.query_engine.get_cost_info() if self.query_engine else None
         info = (
-            f"Session: {self.session.session_id if self.session else 'N/A'}\n"
+            f"Session: {self.session.metadata.id if self.session else 'N/A'}\n"
             f"Model: {self.config.model}\n"
             f"Working dir: {self.config.working_directory}\n"
             f"Permission: {self.config.permission_mode}"
