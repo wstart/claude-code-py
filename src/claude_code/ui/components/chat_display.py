@@ -95,7 +95,7 @@ class ChatDisplay:
             return
 
         label = Text()
-        label.append("Sentinel", style=f"bold {s.claude_orange}")
+        label.append("AKA", style=f"bold {s.claude_orange}")
         self.console.print(label)
 
         # Markdown content with indentation
@@ -185,7 +185,7 @@ class ChatDisplay:
         self._stream_buffer = ""
         s = self.theme.scheme
         label = Text()
-        label.append("Sentinel", style=f"bold {s.claude_orange}")
+        label.append("AKA", style=f"bold {s.claude_orange}")
         label.append("\n", style="")
         self.console.print(label)
 

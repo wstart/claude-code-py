@@ -266,7 +266,7 @@ class AppUI:
         self.console.print()
         self.console.print(
             f"  [{s.claude_orange}]●[/{s.claude_orange}] "
-            f"[bold]Sentinel[/bold] "
+            f"[bold]AKA[/bold] "
             f"[dim]v0.1.0[/dim]"
         )
         self.console.print(
