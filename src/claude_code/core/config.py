@@ -164,7 +164,10 @@ def _load_env_config() -> dict[str, Any]:
     """
     env_map: dict[str, tuple[str, type]] = {
         "ANTHROPIC_API_KEY": ("api_key", str),
-        "ANTHROPIC_BASE_URL": ("api_base_url", str),
+        "ANTHROPIC_AUTH_TOKEN": ("api_key", str),
+        "ANTHROPIC_BASE_URL": ("base_url", str),
+        "ANTHROPIC_MODEL": ("model", str),
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": ("model", str),
         "CLAUDE_MODEL": ("model", str),
         "CLAUDE_MAX_TOKENS": ("max_tokens", int),
         "CLAUDE_TEMPERATURE": ("temperature", float),

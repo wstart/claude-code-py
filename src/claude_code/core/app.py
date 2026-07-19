@@ -158,8 +158,11 @@ class ClaudeApp:
         # Lazy import UI
         from claude_code.ui.app_ui import AppUI
 
-        self.ui = AppUI(
-            model_name=self.config.model or "claude-sonnet-4-20250514",
+        self.ui = AppUI()
+
+        # Set initial status
+        self.ui.update_status(
+            model=self.config.model or "claude-sonnet-4-20250514",
             session_id=self.session.metadata.id if self.session else "unknown",
             working_directory=self.config.working_directory,
         )
@@ -307,10 +310,8 @@ class ClaudeApp:
 
     def _cb_usage(self, usage: dict[str, int]) -> None:
         if self.ui:
-            self.ui.update_status(
-                input_tokens=usage.get("input_tokens", 0),
-                output_tokens=usage.get("output_tokens", 0),
-            )
+            total = usage.get("input_tokens", 0) + usage.get("output_tokens", 0)
+            self.ui.update_status(tokens_used=total)
 
     def _cb_spinner_show(self, label: str) -> None:
         if self.ui:
@@ -325,8 +326,7 @@ class ClaudeApp:
             cost = self.query_engine.get_cost_info()
             self.ui.update_status(
                 model=self.config.model,
-                input_tokens=cost.input_tokens,
-                output_tokens=cost.output_tokens,
+                tokens_used=cost.total_tokens,
             )
 
     # ------------------------------------------------------------------

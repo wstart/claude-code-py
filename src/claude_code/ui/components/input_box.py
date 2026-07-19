@@ -87,9 +87,14 @@ def _build_keybindings(on_submit: Optional[callable] = None) -> KeyBindings:
         """Submit input on Enter."""
         event.current_buffer.validate_and_handle()
 
-    @bindings.add("s-enter")
+    @bindings.add("escape", "enter")
     def _newline(event):
-        """Insert newline on Shift+Enter."""
+        """Insert newline on Escape+Enter (multiline)."""
+        event.current_buffer.insert_text("\n")
+
+    @bindings.add("c-j")
+    def _newline2(event):
+        """Insert newline on Ctrl+J (alternative multiline)."""
         event.current_buffer.insert_text("\n")
 
     @bindings.add("c-c")
