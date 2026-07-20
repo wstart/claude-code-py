@@ -228,6 +228,17 @@ async def _run_app(
     log_level = "DEBUG" if config.verbose else "INFO"
     setup_logging(level=log_level)
 
+    # API connectivity check
+    from claude_code.core.app import ClaudeApp
+    app = ClaudeApp(config=config)
+    ok, detail = await app.check_connection()
+    if not ok:
+        click.echo(f"\n  ✗ {detail}\n", err=True)
+        click.echo("  编辑 ~/.aka/.env 修复配置，然后重试。\n", err=True)
+        sys.exit(1)
+    if not print_mode:
+        click.echo(f"  ✓ {detail}", err=True)
+
     if print_mode or query:
         await _run_print_mode(query, config)
     else:

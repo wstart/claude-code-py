@@ -111,6 +111,79 @@ class ClaudeApp:
             model=self.config.model or "claude-sonnet-4-20250514",
         )
 
+    async def check_connection(self) -> tuple[bool, str]:
+        """Test API connectivity. Returns (ok, detail_message)."""
+        import httpx
+
+        api_key = self.config.api_key
+        base_url = self.config.base_url
+        model = self.config.model or "claude-sonnet-4-20250514"
+
+        # Check env
+        issues = []
+        if not api_key:
+            issues.append("API Key 未设置 (检查 .env 中的 ANTHROPIC_AUTH_TOKEN 或 ANTHROPIC_API_KEY)")
+        if not base_url:
+            issues.append("Base URL 未设置 (检查 .env 中的 ANTHROPIC_BASE_URL)")
+
+        if issues:
+            return False, "配置问题:\n  " + "\n  ".join(issues)
+
+        # Test API call
+        url = base_url.rstrip("/") + "/v1/messages"
+        headers = {
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        }
+        payload = {
+            "model": model,
+            "max_tokens": 10,
+            "messages": [{"role": "user", "content": "hi"}],
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(url, json=payload, headers=headers)
+
+                if resp.status_code == 200:
+                    return True, f"API 连接正常 (model={model})"
+
+                # Parse error
+                try:
+                    err_body = resp.json()
+                    err_msg = err_body.get("error", {}).get("message", "") or str(err_body)
+                except Exception:
+                    err_msg = resp.text[:200]
+
+                detail = (
+                    f"API 返回错误:\n"
+                    f"  URL: {url}\n"
+                    f"  Model: {model}\n"
+                    f"  Status: {resp.status_code}\n"
+                    f"  Response: {err_msg}"
+                )
+
+                if resp.status_code == 401:
+                    detail += "\n  → API Key 无效或已过期，请检查 .env"
+                elif resp.status_code == 403:
+                    detail += "\n  → 无权限访问，请检查 API Key 和 Base URL"
+                elif resp.status_code == 404:
+                    detail += "\n  → 模型不存在或 URL 错误，请检查 model 和 base_url"
+                elif resp.status_code == 429:
+                    detail += "\n  → 请求过于频繁，请稍后重试"
+                elif resp.status_code >= 500:
+                    detail += "\n  → 服务端错误，请稍后重试"
+
+                return False, detail
+
+        except httpx.ConnectError as e:
+            return False, f"无法连接到 API:\n  URL: {url}\n  错误: {e}\n  → 检查网络或 Base URL 是否正确"
+        except httpx.TimeoutException:
+            return False, f"连接超时:\n  URL: {url}\n  → 检查网络或 Base URL"
+        except Exception as e:
+            return False, f"连接异常:\n  {type(e).__name__}: {e}"
+
     async def teardown(self) -> None:
         self._running = False
         if self._provider:
