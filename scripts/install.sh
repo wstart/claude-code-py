@@ -37,9 +37,9 @@ else
     cd "$INSTALL_DIR"
 fi
 
-# 安装依赖
+# 安装核心依赖（云后端按需: pip install ".[aws]" / ".[gcp]" / ".[azure]"）
 echo "→ Installing dependencies..."
-pip3 install -e ".[all]" --quiet
+pip3 install -e . --quiet
 
 # 创建命令链接
 BIN_DIR="$HOME/.local/bin"
