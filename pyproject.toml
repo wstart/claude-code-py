@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "claude-code-py"
+name = "aka_claude"
 version = "0.1.2"
 description = "Python implementation of Claude Code - an agentic coding assistant in your terminal"
 readme = "README.md"
@@ -66,6 +66,18 @@ Documentation = "https://code.claude.com/docs"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/claude_code"]
+
+[tool.hatch.build.targets.sdist]
+# Whitelist source-dist contents so local dirs (env/, dist/, caches) are
+# never packaged.
+include = [
+    "/src",
+    "/main.py",
+    "/scripts",
+    "/README.md",
+    "/LICENSE",
+    "/pyproject.toml",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
