@@ -54,7 +54,7 @@ def _map_error(exc: anthropic.APIError) -> ProviderError:
     if status == 529:
         return OverloadedError(message)
 
-    retryable = status is not None and status in {500, 502, 503}
+    retryable = status is not None and status in {408, 500, 502, 503, 504}
     return ProviderError(message, status_code=status, retryable=retryable)
 
 
@@ -110,6 +110,10 @@ async def _stream_events(
         raise _map_error(exc) from exc
 
 
+def _content_block_index(event: Any) -> int:
+    return int(getattr(event, "index", 0) or 0)
+
+
 async def _stream_events_raw(
     stream: anthropic.AsyncMessageStream,
 ) -> AsyncIterator[StreamEvent]:
@@ -129,6 +133,10 @@ async def _stream_events_raw(
     Yields:
         Normalized ``StreamEvent`` objects.
     """
+    # Map content-block index → real tool id so delta/stop events carry the
+    # same tool_id as the start event (the SDK only puts the id on start).
+    tool_ids: dict[int, str] = {}
+
     async with stream as s:
         async for event in s:
             event_type = getattr(event, "type", "")
@@ -158,9 +166,12 @@ async def _stream_events_raw(
                         )
 
                 elif block_type == "tool_use":
+                    idx = _content_block_index(event)
+                    tid = getattr(block, "id", "") or str(idx)
+                    tool_ids[idx] = tid
                     yield StreamEvent(
                         type="tool_use_start",
-                        tool_id=getattr(block, "id", ""),
+                        tool_id=tid,
                         tool_name=getattr(block, "name", ""),
                         raw=event,
                     )
@@ -169,7 +180,7 @@ async def _stream_events_raw(
                     if partial:
                         yield StreamEvent(
                             type="tool_use_delta",
-                            tool_id=getattr(block, "id", ""),
+                            tool_id=tid,
                             content=partial,
                             raw=event,
                         )
@@ -186,20 +197,19 @@ async def _stream_events_raw(
                     )
 
                 elif delta_type == "input_json_delta":
-                    # Extract index from event for tool_id correlation
-                    idx = getattr(event, "index", 0)
+                    idx = _content_block_index(event)
                     yield StreamEvent(
                         type="tool_use_delta",
-                        tool_id=str(idx),
+                        tool_id=tool_ids.get(idx, str(idx)),
                         content=getattr(delta, "partial_json", ""),
                         raw=event,
                     )
 
             elif event_type == "content_block_stop":
-                idx = getattr(event, "index", 0)
+                idx = _content_block_index(event)
                 yield StreamEvent(
                     type="tool_use_stop",
-                    tool_id=str(idx),
+                    tool_id=tool_ids.get(idx, str(idx)),
                     raw=event,
                 )
 

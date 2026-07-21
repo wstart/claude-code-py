@@ -202,7 +202,7 @@ def main(
 
 
 def _interactive_setup() -> None:
-    """Prompt for API config on first run and save it to ~/.claude/.env.
+    """Prompt for API config on first run and save it to ~/.aka/.env.
 
     Written to os.environ immediately so the current run picks it up. Only
     called on an interactive terminal (see caller).

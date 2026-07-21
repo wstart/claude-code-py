@@ -61,10 +61,21 @@ class StreamEvent(BaseModel):
         # ``null`` for these fields; coerce to "" instead of erroring.
         return "" if v is None else v
 
-    @field_validator("tool_input", "usage", mode="before")
+    @field_validator("tool_input", mode="before")
     @classmethod
     def _none_dict_to_empty(cls, v: Any) -> Any:
         return {} if v is None else v
+
+    @field_validator("usage", mode="before")
+    @classmethod
+    def _clean_usage(cls, v: Any) -> Any:
+        # usage is dict[str, int]; providers/gateways may send null for the
+        # whole dict or for individual token counts — coerce both to 0.
+        if v is None:
+            return {}
+        if isinstance(v, dict):
+            return {k: (0 if val is None else val) for k, val in v.items()}
+        return v
 
 
 class ProviderResponse(BaseModel):

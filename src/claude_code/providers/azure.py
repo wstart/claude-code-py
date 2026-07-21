@@ -213,7 +213,7 @@ def _map_http_error(status_code: int, body: str) -> ProviderError:
     if status_code == 529:
         return OverloadedError(body)
 
-    retryable = status_code in {500, 502, 503}
+    retryable = status_code in {408, 500, 502, 503, 504}
     return ProviderError(body, status_code=status_code, retryable=retryable)
 
 

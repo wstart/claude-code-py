@@ -129,7 +129,7 @@ def _map_http_error(status_code: int, body: str) -> ProviderError:
     if status_code == 529:
         return OverloadedError(body)
 
-    retryable = status_code in {500, 502, 503}
+    retryable = status_code in {408, 500, 502, 503, 504}
     return ProviderError(body, status_code=status_code, retryable=retryable)
 
 
@@ -216,6 +216,7 @@ async def _stream_events(
     Yields:
         Normalized ``StreamEvent`` objects.
     """
+    tool_ids: dict[int, str] = {}  # content-block index → real tool id
     # httpx.Response is not an async context manager — close explicitly.
     r = response
     try:
@@ -269,9 +270,12 @@ async def _stream_events(
                             raw=data,
                         )
                 elif block_type == "tool_use":
+                    idx = int(data.get("index", 0) or 0)
+                    tid = block.get("id", "") or str(idx)
+                    tool_ids[idx] = tid
                     yield StreamEvent(
                         type="tool_use_start",
-                        tool_id=block.get("id", ""),
+                        tool_id=tid,
                         tool_name=block.get("name", ""),
                         raw=data,
                     )
@@ -287,19 +291,19 @@ async def _stream_events(
                         raw=data,
                     )
                 elif delta_type == "input_json_delta":
-                    idx = data.get("index", 0)
+                    idx = int(data.get("index", 0) or 0)
                     yield StreamEvent(
                         type="tool_use_delta",
-                        tool_id=str(idx),
+                        tool_id=tool_ids.get(idx, str(idx)),
                         content=delta.get("partial_json", ""),
                         raw=data,
                     )
 
             elif event_type == "content_block_stop":
-                idx = data.get("index", 0)
+                idx = int(data.get("index", 0) or 0)
                 yield StreamEvent(
                     type="tool_use_stop",
-                    tool_id=str(idx),
+                    tool_id=tool_ids.get(idx, str(idx)),
                     raw=data,
                 )
 

@@ -20,6 +20,13 @@ def test_null_dict_field_coerced_to_empty(field: str) -> None:
     assert getattr(ev, field) == {}
 
 
+def test_usage_inner_null_coerced_to_zero() -> None:
+    # Gateways may send output_tokens: null inside the usage dict; must not
+    # crash (usage is dict[str, int]).
+    ev = StreamEvent(type="message_delta", usage={"input_tokens": 100, "output_tokens": None})
+    assert ev.usage == {"input_tokens": 100, "output_tokens": 0}
+
+
 def test_normal_values_preserved() -> None:
     ev = StreamEvent(
         type="message_delta",

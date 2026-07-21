@@ -60,7 +60,7 @@ def _map_error(exc: openai.APIError) -> ProviderError:
     if status == 529:
         return OverloadedError(message)
 
-    retryable = status is not None and status in {500, 502, 503}
+    retryable = status is not None and status in {408, 500, 502, 503, 504}
     return ProviderError(message, status_code=status, retryable=retryable)
 
 
