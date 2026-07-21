@@ -29,6 +29,10 @@ class AppConfig(BaseModel):
     model: str = DEFAULT_MODEL
     max_tokens: int = 16384
     temperature: float = 0.0
+    # Skip TLS certificate verification for a custom base_url (self-signed /
+    # internal endpoints). Insecure — off by default. http:// endpoints work
+    # regardless of this flag.
+    skip_ssl_verify: bool = False
 
     # Behavior
     permission_mode: str = "bypass"  # manual | auto | plan | bypass
@@ -180,6 +184,7 @@ def _load_env_config() -> dict[str, Any]:
         "CLAUDE_NO_COLOR": ("no_color", bool),
         "CLAUDE_DANGEROUSLY_SKIP_PERMISSIONS": ("dangerously_skip_permissions", bool),
         "CLAUDE_EFFORT": ("effort", str),
+        "CLAUDE_SKIP_SSL_VERIFY": ("skip_ssl_verify", bool),
     }
 
     result: dict[str, Any] = {}

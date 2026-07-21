@@ -144,7 +144,8 @@ class ClaudeApp:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
+            verify = not self.config.skip_ssl_verify
+            async with httpx.AsyncClient(timeout=15.0, verify=verify) as client:
                 resp = await client.post(url, json=payload, headers=headers)
 
                 if resp.status_code == 200:
@@ -370,16 +371,19 @@ class ClaudeApp:
     def _create_provider(self) -> Any:
         provider_name = self.config.provider or "anthropic"
         model = self.config.model
+        verify_ssl = not self.config.skip_ssl_verify
         if provider_name == "openai":
             from claude_code.providers.openai_compat import OpenAICompatProvider
             return OpenAICompatProvider(
                 api_key=self.config.api_key or os.environ.get("OPENAI_API_KEY", ""),
                 base_url=self.config.base_url or "https://api.openai.com/v1",
                 default_model=model,
+                verify_ssl=verify_ssl,
             )
         from claude_code.providers.anthropic_provider import AnthropicProvider
         return AnthropicProvider(
             api_key=self.config.api_key or os.environ.get("ANTHROPIC_API_KEY", ""),
             base_url=self.config.base_url,
             default_model=model,
+            verify_ssl=verify_ssl,
         )

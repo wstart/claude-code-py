@@ -53,6 +53,12 @@ export ANTHROPIC_BASE_URL="https://api.anthropic.com"   # 可选，自定义/代
 export CLAUDE_MODEL="claude-sonnet-4-6"                  # 可选，默认模型
 ```
 
+自定义 `base_url` 若是 **http 明文端点**可直接使用；若是**自签名 / 内网 HTTPS**证书导致连接失败，可显式关闭证书校验（不安全，默认开启校验）：
+
+```bash
+export CLAUDE_SKIP_SSL_VERIFY=1   # 跳过 TLS 证书验证，仅用于可信的内网/自签端点
+```
+
 ## 使用
 
 ```bash

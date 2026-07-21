@@ -369,9 +369,17 @@ class OpenAICompatProvider(BaseProvider):
         api_key: str | None = None,
         base_url: str | None = None,
         default_model: str = DEFAULT_MODEL,
+        verify_ssl: bool = True,
         **client_kwargs: Any,
     ) -> None:
         self._default_model = default_model
+        if not verify_ssl and "http_client" not in client_kwargs:
+            import httpx
+            logger.warning(
+                "TLS certificate verification is DISABLED for %s (insecure).",
+                base_url or "the default endpoint",
+            )
+            client_kwargs["http_client"] = httpx.AsyncClient(verify=False)
         self._client = openai.AsyncOpenAI(
             api_key=api_key or "not-needed",
             base_url=base_url,
