@@ -218,7 +218,12 @@ async def _run_app(
         overrides: CLI flag overrides.
     """
     from claude_code.core.config import load_config
+    from claude_code.utils.dotenv import load_dotenv_files
     from claude_code.utils.logging import setup_logging
+
+    # Load .env (current dir / ~/.aka / ~/.claude) so `aka` behaves like
+    # `python main.py` — config below reads from os.environ.
+    load_dotenv_files()
 
     # Load configuration
     config = load_config(overrides=overrides)
