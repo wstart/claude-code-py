@@ -8,10 +8,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from claude_code.utils.logging import get_logger
 from claude_code.utils.path_utils import expand_user, get_project_root
+
+if TYPE_CHECKING:
+    from claude_code.skills.manager import Skill
 
 logger = get_logger("skills.discovery")
 
@@ -40,13 +43,12 @@ class SkillDiscovery:
         """
         self._extra_dirs = extra_dirs or []
 
-    def scan_all(self) -> list["Skill"]:
+    def scan_all(self) -> list[Skill]:
         """Scan all configured and extra directories for skills.
 
         Returns:
             Deduplicated list of discovered skills (by name).
         """
-        from claude_code.skills.manager import Skill
 
         seen: dict[str, Skill] = {}
 
@@ -73,7 +75,7 @@ class SkillDiscovery:
 
         return list(seen.values())
 
-    def scan_directory(self, path: str) -> list["Skill"]:
+    def scan_directory(self, path: str) -> list[Skill]:
         """Scan a single directory for skill definitions.
 
         Args:
@@ -82,7 +84,6 @@ class SkillDiscovery:
         Returns:
             List of skills found in the directory.
         """
-        from claude_code.skills.manager import Skill
 
         directory = Path(path)
         if not directory.is_dir():
@@ -106,7 +107,7 @@ class SkillDiscovery:
 
         return skills
 
-    def scan_builtin_skills(self) -> list["Skill"]:
+    def scan_builtin_skills(self) -> list[Skill]:
         """Scan the built-in skills directory.
 
         Returns:
@@ -116,7 +117,7 @@ class SkillDiscovery:
             return []
         return self.scan_directory(str(_BUILTIN_SKILLS_DIR))
 
-    def find_skill(self, name: str) -> Optional["Skill"]:
+    def find_skill(self, name: str) -> Skill | None:
         """Search all locations for a specific skill by name.
 
         Args:
@@ -130,7 +131,7 @@ class SkillDiscovery:
                 return skill
         return None
 
-    def load_instructions(self, skill: "Skill") -> str:
+    def load_instructions(self, skill: Skill) -> str:
         """Load the full instruction text for a skill.
 
         Args:
@@ -162,7 +163,7 @@ class SkillDiscovery:
 
     def _load_directory_skill(
         self, directory: Path, manifest_file: Path,
-    ) -> Optional["Skill"]:
+    ) -> Skill | None:
         """Load a skill from a directory with skill.json."""
         from claude_code.skills.manager import Skill
 
@@ -181,7 +182,7 @@ class SkillDiscovery:
             tags=data.get("tags", []),
         )
 
-    def _load_file_skill(self, filepath: Path) -> Optional["Skill"]:
+    def _load_file_skill(self, filepath: Path) -> Skill | None:
         """Load a skill from a single .md file."""
         from claude_code.skills.manager import Skill
 

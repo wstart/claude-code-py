@@ -252,7 +252,7 @@ class MCPClient:
         effective_timeout = timeout if timeout is not None else self._timeout
         try:
             result = await asyncio.wait_for(future, timeout=effective_timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self._pending.pop(req_id, None)
             raise MCPError(
                 f"Request '{method}' (id={req_id}) timed out "

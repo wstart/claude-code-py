@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from typing import Annotated, Any, Literal, Optional, Union
+from datetime import UTC, datetime
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -52,7 +52,7 @@ class ToolResultContent(BaseModel):
 
 # Union of all content block types
 ContentBlock = Annotated[
-    Union[TextContent, ImageContent, ToolUseContent, ToolResultContent],
+    TextContent | ImageContent | ToolUseContent | ToolResultContent,
     Field(discriminator="type"),
 ]
 
@@ -85,7 +85,7 @@ class Message(BaseModel):
     def with_tool_use(
         cls,
         text: str | None = None,
-        tool_uses: Optional[list[ToolUseContent]] = None,
+        tool_uses: list[ToolUseContent] | None = None,
     ) -> Message:
         """Create an assistant message with optional text and tool calls.
 
@@ -122,7 +122,9 @@ class Message(BaseModel):
         """
         return cls(
             role="user",
-            content=[ToolResultContent(tool_use_id=tool_use_id, content=content, is_error=is_error)],
+            content=[
+                ToolResultContent(tool_use_id=tool_use_id, content=content, is_error=is_error)
+            ],
         )
 
     def text(self) -> str:
@@ -173,7 +175,7 @@ class Conversation(BaseModel):
 
     messages: list[Message] = Field(default_factory=list)
     session_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     model: str = ""
     cost: CostInfo = Field(default_factory=CostInfo)
 
@@ -181,11 +183,11 @@ class Conversation(BaseModel):
         """Append a message to the conversation."""
         self.messages.append(message)
 
-    def last_message(self) -> Optional[Message]:
+    def last_message(self) -> Message | None:
         """Get the most recent message, or None if empty."""
         return self.messages[-1] if self.messages else None
 
-    def last_assistant_message(self) -> Optional[Message]:
+    def last_assistant_message(self) -> Message | None:
         """Get the most recent assistant message."""
         for msg in reversed(self.messages):
             if msg.role == "assistant":
@@ -217,6 +219,10 @@ class Conversation(BaseModel):
             api_blocks: list[dict[str, Any]] = []
             for block in msg.content:
                 if isinstance(block, TextContent):
+                    # Drop empty text blocks — the API rejects
+                    # {"type": "text", "text": ""} with a 400.
+                    if not block.text:
+                        continue
                     api_blocks.append({"type": "text", "text": block.text})
                 elif isinstance(block, ImageContent):
                     api_blocks.append({"type": "image", "source": block.source})
@@ -244,7 +250,10 @@ class Conversation(BaseModel):
                         "is_error": block.is_error,
                     })
 
-            result.append({"role": msg.role, "content": api_blocks})
+            # A message with no content blocks is also rejected by the API;
+            # skip it entirely rather than send an empty content array.
+            if api_blocks:
+                result.append({"role": msg.role, "content": api_blocks})
 
         return result
 
@@ -255,3 +264,22 @@ class Conversation(BaseModel):
             if msg.role == "system":
                 parts.append(msg.text())
         return "\n\n".join(parts)
+
+
+def api_message_text(content: Any) -> str:
+    """Extract displayable text from an API-format message ``content`` value.
+
+    Accepts a plain string or a list of content-block dicts; returns the
+    concatenated text of any ``text`` blocks (used to replay a resumed
+    session's messages in the UI).
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = [
+            block.get("text", "")
+            for block in content
+            if isinstance(block, dict) and block.get("type") == "text"
+        ]
+        return "\n".join(p for p in parts if p)
+    return ""

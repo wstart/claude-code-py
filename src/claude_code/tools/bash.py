@@ -103,6 +103,7 @@ class _PersistentShell:
 
             # Read output until we see the sentinel or timeout
             output_lines: list[str] = []
+            total = 0  # running byte count for O(1) truncation checks
             exit_code = -1
             start_time = time.monotonic()
 
@@ -144,7 +145,7 @@ class _PersistentShell:
                     output_lines.append(line)
 
                     # Safety: truncate huge output
-                    total = sum(len(line) for line in output_lines)
+                    total += len(line)
                     if total > _MAX_OUTPUT_SIZE:
                         output_lines.append(
                             "\n... (output truncated at "
@@ -167,7 +168,7 @@ class _PersistentShell:
             return output, exit_code
 
     async def _kill(self) -> None:
-        """Kill the shell process group."""
+        """Kill the shell process group and reap it."""
         if self._proc is None:
             return
         try:
@@ -178,6 +179,11 @@ class _PersistentShell:
         try:
             self._proc.kill()
         except ProcessLookupError:
+            pass
+        # Reap the killed process so it does not linger as a zombie.
+        try:
+            await asyncio.wait_for(self._proc.wait(), timeout=5.0)
+        except (TimeoutError, ProcessLookupError):
             pass
 
     async def stop(self) -> None:

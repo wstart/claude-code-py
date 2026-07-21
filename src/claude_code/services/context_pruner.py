@@ -6,7 +6,6 @@ from typing import Any
 
 from claude_code.core.context import (
     MIN_RECENT_MESSAGES,
-    _estimate_message_tokens,
     _total_tokens,
 )
 

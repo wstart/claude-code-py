@@ -36,6 +36,7 @@ class GrepTool(Tool):
         "Results sorted by file modification time (newest first)."
     )
     category = "file"
+    read_only = True
     input_schema: dict[str, Any] = {
         "type": "object",
         "properties": {

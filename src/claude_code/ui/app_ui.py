@@ -5,9 +5,7 @@ tool output, status bar) into a cohesive interactive terminal
 application.
 """
 
-import asyncio
-import sys
-from typing import Any, Optional
+from typing import Any
 
 from rich.console import Console
 
@@ -40,8 +38,8 @@ class AppUI:
 
     def __init__(
         self,
-        theme: Optional[ThemeConfig] = None,
-        console: Optional[Console] = None,
+        theme: ThemeConfig | None = None,
+        console: Console | None = None,
     ) -> None:
         """Initialize the UI application.
 
@@ -110,7 +108,7 @@ class AppUI:
 
     _on_input = None
 
-    async def get_input(self) -> Optional[str]:
+    async def get_input(self) -> str | None:
         """Get user input from the input box.
 
         Returns:
@@ -225,11 +223,11 @@ class AppUI:
 
     def update_status(
         self,
-        model: Optional[str] = None,
-        session_id: Optional[str] = None,
-        tokens_used: Optional[int] = None,
-        cost_usd: Optional[float] = None,
-        working_directory: Optional[str] = None,
+        model: str | None = None,
+        session_id: str | None = None,
+        tokens_used: int | None = None,
+        cost_usd: float | None = None,
+        working_directory: str | None = None,
     ) -> None:
         """Update the status bar information.
 

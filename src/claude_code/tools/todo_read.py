@@ -23,6 +23,7 @@ class TodoReadTool(Tool):
         "content, status (pending/in_progress/completed), and priority."
     )
     category = "todo"
+    read_only = True
     input_schema: dict[str, Any] = {
         "type": "object",
         "properties": {},

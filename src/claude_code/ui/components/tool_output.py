@@ -4,7 +4,7 @@ Renders collapsible, color-coded tool output sections with
 truncation for long results.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
@@ -35,7 +35,7 @@ class ToolOutput:
     def __init__(
         self,
         console: Console,
-        theme: Optional[ThemeConfig] = None,
+        theme: ThemeConfig | None = None,
     ) -> None:
         """Initialize tool output display.
 

@@ -1,9 +1,9 @@
 """LLM provider layer — unified interface for Anthropic, OpenAI, and others."""
 
 from claude_code.providers.base import (
+    MODEL_ALIASES,
     AuthenticationError,
     BaseProvider,
-    MODEL_ALIASES,
     OverloadedError,
     ProviderError,
     ProviderResponse,
@@ -22,7 +22,7 @@ from claude_code.providers.retry import (
 )
 from claude_code.providers.streaming import (
     CancelToken,
-    StreamCancelled,
+    StreamCancelledError,
     StreamProcessor,
     TextBuffer,
     ToolUseBuffer,
@@ -51,7 +51,7 @@ __all__ = [
     "with_retry",
     # Streaming
     "CancelToken",
-    "StreamCancelled",
+    "StreamCancelledError",
     "StreamProcessor",
     "TextBuffer",
     "ToolUseBuffer",

@@ -10,7 +10,7 @@ or any other scoped work.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from claude_code.core.query_engine import QueryEngine
 from claude_code.providers.streaming import CancelToken

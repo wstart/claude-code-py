@@ -8,9 +8,9 @@ from __future__ import annotations
 
 import json
 import shutil
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from claude_code.plugins.loader import Plugin, PluginLoader, PluginManifest
 from claude_code.plugins.registry import PluginRegistry

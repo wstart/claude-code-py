@@ -5,7 +5,6 @@ for operations with known completion percentages.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from rich.console import Console
 from rich.progress import (
@@ -27,7 +26,7 @@ class TaskItem:
 
     description: str
     completed: bool = False
-    error: Optional[str] = None
+    error: str | None = None
 
 
 @dataclass
@@ -49,7 +48,7 @@ class TaskList:
         self.tasks.append(TaskItem(description=description))
         return len(self.tasks) - 1
 
-    def complete_task(self, index: int, error: Optional[str] = None) -> None:
+    def complete_task(self, index: int, error: str | None = None) -> None:
         """Mark a task as completed.
 
         Args:
@@ -75,7 +74,7 @@ class ProgressDisplay:
     def __init__(
         self,
         console: Console,
-        theme: Optional[ThemeConfig] = None,
+        theme: ThemeConfig | None = None,
     ) -> None:
         """Initialize progress display.
 
@@ -115,7 +114,7 @@ class ProgressDisplay:
 
             table.add_row(status, desc)
 
-        header = Text(f"\n{task_list.title}", style=f"bold {self.theme.scheme.primary}")
+        header = Text(f"\n{task_list.title}", style=f"bold {self.theme.scheme.aka_red}")
         self.console.print(header)
         self.console.print(table)
 

@@ -78,6 +78,10 @@ class Tool(ABC):
     # Category hint for UI / permission grouping.
     category: str = "general"
 
+    # Read-only tools are safe to run concurrently; mutating tools are
+    # serialized by the query engine to avoid write races.
+    read_only: bool = False
+
     def __init__(self, context: ToolContext | None = None) -> None:
         self.context = context or ToolContext()
 

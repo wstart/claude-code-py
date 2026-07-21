@@ -122,35 +122,35 @@ def _build_messages(
 
     # Convert Anthropic-style messages to OpenAI format
     for msg in messages:
-        result.append(_convert_message(msg))
+        result.extend(_convert_message(msg))
 
     return result
 
 
-def _convert_message(msg: dict[str, Any]) -> dict[str, Any]:
+def _convert_message(msg: dict[str, Any]) -> list[dict[str, Any]]:
     """Convert a single message from Anthropic to OpenAI format.
 
-    Handles:
-    - Simple text messages (pass through)
-    - Messages with content blocks (text, tool_use, tool_result)
-    - Tool result messages
+    One Anthropic message may expand into several OpenAI messages: a message
+    carrying N ``tool_result`` blocks (parallel tool calls) becomes N separate
+    ``role: "tool"`` messages, so callers must not assume a 1:1 mapping.
 
     Args:
         msg: Message in Anthropic or already-OpenAI format.
 
     Returns:
-        Message dict in OpenAI chat format.
+        One or more message dicts in OpenAI chat format.
     """
     role = msg.get("role", "user")
     content = msg.get("content", "")
 
     # If content is a string, pass through
     if isinstance(content, str):
-        return msg
+        return [msg]
 
     # Content is a list of blocks — convert each
     openai_content: list[dict[str, Any]] = []
     tool_calls: list[dict[str, Any]] = []
+    tool_messages: list[dict[str, Any]] = []
 
     for block in content:
         if not isinstance(block, dict):
@@ -175,12 +175,12 @@ def _convert_message(msg: dict[str, Any]) -> dict[str, Any]:
             })
 
         elif block_type == "tool_result":
-            # tool_result becomes a separate "tool" role message
-            return {
+            # Each tool_result becomes its own "tool" role message.
+            tool_messages.append({
                 "role": "tool",
                 "tool_call_id": block.get("tool_use_id", ""),
                 "content": block.get("content", ""),
-            }
+            })
 
         elif block_type == "image":
             source = block.get("source", {})
@@ -194,24 +194,29 @@ def _convert_message(msg: dict[str, Any]) -> dict[str, Any]:
                 },
             })
 
-    result: dict[str, Any] = {"role": role}
+    out: list[dict[str, Any]] = []
 
-    if openai_content:
-        # Simplify: if only one text block, use plain string
-        if (
-            len(openai_content) == 1
-            and openai_content[0].get("type") == "text"
-        ):
-            result["content"] = openai_content[0]["text"]
+    # Emit the main assistant/user message only when it carries content or
+    # tool calls — a pure tool_result message produces only tool messages.
+    if openai_content or tool_calls:
+        main: dict[str, Any] = {"role": role}
+        if openai_content:
+            # Simplify: if only one text block, use plain string
+            if (
+                len(openai_content) == 1
+                and openai_content[0].get("type") == "text"
+            ):
+                main["content"] = openai_content[0]["text"]
+            else:
+                main["content"] = openai_content
         else:
-            result["content"] = openai_content
-    else:
-        result["content"] = ""
+            main["content"] = ""
+        if tool_calls:
+            main["tool_calls"] = tool_calls
+        out.append(main)
 
-    if tool_calls:
-        result["tool_calls"] = tool_calls
-
-    return result
+    out.extend(tool_messages)
+    return out
 
 
 async def _stream_events(
@@ -232,8 +237,19 @@ async def _stream_events(
     """
     # Track tool calls being built across chunks
     tool_calls_buffer: dict[int, dict[str, Any]] = {}
+    pending_usage: dict[str, int] = {}
+    final_stop_reason: str | None = None
 
     async for chunk in stream:
+        # With stream_options.include_usage, usage arrives in a trailing
+        # chunk whose `choices` list is empty — capture it before skipping.
+        chunk_usage = getattr(chunk, "usage", None)
+        if chunk_usage:
+            pending_usage = {
+                "input_tokens": getattr(chunk_usage, "prompt_tokens", 0) or 0,
+                "output_tokens": getattr(chunk_usage, "completion_tokens", 0) or 0,
+            }
+
         if not chunk.choices:
             continue
 
@@ -301,22 +317,16 @@ async def _stream_events(
                     raw=chunk,
                 )
 
-            stop_reason = _map_finish_reason(finish_reason)
-            usage: dict[str, int] = {}
-            chunk_usage = getattr(chunk, "usage", None)
-            if chunk_usage:
-                usage = {
-                    "input_tokens": getattr(chunk_usage, "prompt_tokens", 0),
-                    "output_tokens": getattr(chunk_usage, "completion_tokens", 0),
-                }
+            final_stop_reason = _map_finish_reason(finish_reason)
 
-            yield StreamEvent(
-                type="message_delta",
-                stop_reason=stop_reason,
-                usage=usage,
-                raw=chunk,
-            )
-            yield StreamEvent(type="message_stop", raw=chunk)
+    # Emit terminal events after the stream drains, so the trailing
+    # usage-only chunk is included.
+    yield StreamEvent(
+        type="message_delta",
+        stop_reason=final_stop_reason or "end_turn",
+        usage=pending_usage,
+    )
+    yield StreamEvent(type="message_stop", usage=pending_usage)
 
 
 def _map_finish_reason(finish_reason: str) -> str:

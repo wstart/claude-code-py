@@ -19,6 +19,13 @@ _MAX_LINE_LENGTH = 2000
 # Default maximum number of lines to return
 _DEFAULT_LIMIT = 2000
 
+# Reject text files larger than this to avoid loading GBs into memory.
+_MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+
+# Only sample this many leading bytes for encoding detection — running
+# chardet over a whole large file is very slow.
+_CHARDET_SAMPLE = 64 * 1024
+
 # File extensions we treat as images (return base64)
 _IMAGE_EXTENSIONS = frozenset({
     ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tiff", ".ico",
@@ -51,6 +58,7 @@ class ReadTool(Tool):
         "Supports offset/limit for reading specific line ranges."
     )
     category = "file"
+    read_only = True
     input_schema: dict[str, Any] = {
         "type": "object",
         "properties": {
@@ -104,14 +112,27 @@ class ReadTool(Tool):
         import chardet
 
         try:
+            file_size = path.stat().st_size
+        except OSError as exc:
+            return ToolResult.error(f"Cannot stat file: {exc}")
+
+        if file_size > _MAX_FILE_SIZE:
+            return ToolResult.error(
+                f"File too large to read: {file_size} bytes "
+                f"(limit {_MAX_FILE_SIZE}). Use a shell tool (e.g. sed/head) "
+                "to extract the range you need."
+            )
+
+        try:
             raw_bytes = path.read_bytes()
         except PermissionError:
             return ToolResult.error(f"Permission denied: {path}")
         except OSError as exc:
             return ToolResult.error(f"Cannot read file: {exc}")
 
-        # Detect encoding
-        detected = chardet.detect(raw_bytes)
+        # Detect encoding from a bounded prefix (chardet over a whole file
+        # is slow); the detected encoding is reused for the full decode.
+        detected = chardet.detect(raw_bytes[:_CHARDET_SAMPLE])
         encoding = detected.get("encoding") or "utf-8"
 
         try:

@@ -105,7 +105,7 @@ class SlashDispatcher:
         from claude_code.core.context import compress
 
         api_msgs = self.app.query_engine.conversation.to_api_messages()
-        compressed = compress(api_msgs, max_tokens=self.app.config.max_tokens or 200_000)
+        compressed = compress(api_msgs)
         self.app.query_engine._rebuild_conversation(compressed)
         self.app.ui.show_info(f"Compacted: {len(api_msgs)} → {len(compressed)} messages")
 
@@ -211,24 +211,20 @@ class SlashDispatcher:
             self.app.ui.show_info("No previous session found.")
             return
         self.app.session = loaded
-        from claude_code.core.message import Conversation, Message
+        from claude_code.core.message import api_message_text
 
-        conv = Conversation()
+        # Rebuild typed content blocks (text/tool_use/tool_result) so the
+        # resumed conversation keeps its full tool history.
+        self.app.query_engine.restore_conversation(loaded.messages)
         for msg_data in loaded.messages:
             role = msg_data.get("role", "user")
-            content = msg_data.get("content", "")
-            if isinstance(content, str):
-                msg = Message.user(content) if role == "user" else Message.assistant(content)
-            else:
-                msg = Message(role=role, content=content)
-            conv.add_message(msg)
-            # Display the message in the UI
-            text = content if isinstance(content, str) else str(content)
+            text = api_message_text(msg_data.get("content", ""))
+            if not text:
+                continue
             if role == "user":
                 self.app.ui.display_user_message(text)
             elif role == "assistant":
                 self.app.ui.display_assistant_message(text)
-        self.app.query_engine.conversation = conv
         self.app.ui.show_info(
             f"Resumed session {loaded.metadata.id[:8]}... "
             f"({len(loaded.messages)} messages)"
@@ -251,9 +247,9 @@ class SlashDispatcher:
                 allow = [str(r) for r in getattr(rules, "_allow_rules", [])]
                 deny = [str(r) for r in getattr(rules, "_deny_rules", [])]
                 if allow:
-                    info += f"Allow rules:\n  " + "\n  ".join(allow) + "\n"
+                    info += "Allow rules:\n  " + "\n  ".join(allow) + "\n"
                 if deny:
-                    info += f"Deny rules:\n  " + "\n  ".join(deny) + "\n"
+                    info += "Deny rules:\n  " + "\n  ".join(deny) + "\n"
                 if not allow and not deny:
                     info += "No custom rules configured."
             except Exception:

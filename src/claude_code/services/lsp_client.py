@@ -13,9 +13,9 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from claude_code.utils.logging import get_logger
 
@@ -74,17 +74,17 @@ class LSPClient:
     def __init__(
         self,
         command: str,
-        args: Optional[list[str]] = None,
+        args: list[str] | None = None,
         root_uri: str = "",
     ) -> None:
         self._command = command
         self._args = args or []
         self._root_uri = root_uri or f"file://{Path.cwd()}"
 
-        self._process: Optional[asyncio.subprocess.Process] = None
+        self._process: asyncio.subprocess.Process | None = None
         self._initialized = False
         self._pending: dict[str, asyncio.Future[Any]] = {}
-        self._reader_task: Optional[asyncio.Task[None]] = None
+        self._reader_task: asyncio.Task[None] | None = None
         self._server_capabilities: dict[str, Any] = {}
 
     # ------------------------------------------------------------------
@@ -151,7 +151,7 @@ class LSPClient:
             self._process.terminate()
             try:
                 await asyncio.wait_for(self._process.wait(), timeout=5.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 self._process.kill()
 
         self._process = None
@@ -301,7 +301,7 @@ class LSPClient:
 
         try:
             return await asyncio.wait_for(future, timeout=10.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self._pending.pop(request_id, None)
             raise RuntimeError(f"LSP request {method} timed out")
 

@@ -27,8 +27,12 @@ class HookExecutor:
     * Exit 0 + non-JSON stdout -> ALLOW with stdout as reason.
     * Exit 0 + empty stdout -> ALLOW.
     * Exit 2 -> DENY (stdout used as reason).
-    * Any other exit code -> ALLOW (logged as warning).
-    * Timeout -> ALLOW (logged as warning).
+    * Any other exit code -> ALLOW, unless ``fail_closed`` (then DENY).
+    * Timeout / start failure -> ALLOW, unless ``fail_closed`` (then DENY).
+
+    ``fail_closed`` is for hooks that gate a security-sensitive action
+    (e.g. PreToolUse): if the hook can't run to a clean decision, the
+    action is blocked rather than silently permitted.
     """
 
     def __init__(self, working_directory: str = "") -> None:
@@ -39,6 +43,7 @@ class HookExecutor:
         command: str,
         payload: HookPayload,
         timeout: float = 30.0,
+        fail_closed: bool = False,
     ) -> HookResult:
         """Run a hook command and return its decision.
 
@@ -46,11 +51,15 @@ class HookExecutor:
             command: Shell command or path to a script file.
             payload: The event payload to pass via stdin.
             timeout: Maximum seconds to wait for the hook.
+            fail_closed: If True, an execution failure (start error, timeout,
+                communication error, or unexpected exit code) yields DENY
+                instead of ALLOW. Use for security-gating hooks.
 
         Returns:
             A HookResult reflecting the hook's decision.
         """
         stdin_data = payload.model_dump_json()
+        fail_decision = HookDecision.DENY if fail_closed else HookDecision.ALLOW
 
         try:
             proc = await asyncio.create_subprocess_shell(
@@ -62,24 +71,24 @@ class HookExecutor:
             )
         except Exception as exc:
             logger.warning("Hook %r failed to start: %s", command, exc)
-            return HookResult(decision=HookDecision.ALLOW, reason=f"Hook start error: {exc}")
+            return HookResult(decision=fail_decision, reason=f"Hook start error: {exc}")
 
         try:
             stdout_bytes, stderr_bytes = await asyncio.wait_for(
                 proc.communicate(input=stdin_data.encode()),
                 timeout=timeout,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             await proc.wait()
             logger.warning("Hook %r timed out after %.1fs", command, timeout)
             return HookResult(
-                decision=HookDecision.ALLOW,
+                decision=fail_decision,
                 reason=f"Hook timed out after {timeout}s",
             )
         except Exception as exc:
             logger.warning("Hook %r communication error: %s", command, exc)
-            return HookResult(decision=HookDecision.ALLOW, reason=f"Hook error: {exc}")
+            return HookResult(decision=fail_decision, reason=f"Hook error: {exc}")
 
         stdout = stdout_bytes.decode(errors="replace").strip()
         stderr = stderr_bytes.decode(errors="replace").strip()
@@ -108,12 +117,12 @@ class HookExecutor:
         if exit_code == _EXIT_ALLOW:
             return HookResult(decision=HookDecision.ALLOW)
 
-        # Unexpected exit code -> ALLOW with warning
+        # Unexpected exit code -> ALLOW (or DENY under fail_closed)
         logger.warning(
             "Hook %r exited with code %d (stdout: %s)", command, exit_code, stdout[:200],
         )
         return HookResult(
-            decision=HookDecision.ALLOW,
+            decision=fail_decision,
             reason=f"Hook exited with code {exit_code}",
         )
 

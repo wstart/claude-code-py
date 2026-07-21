@@ -5,7 +5,6 @@ security operations. Deep blacks, neon accents, tight spacing.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from rich.style import Style
 from rich.theme import Theme
@@ -170,6 +169,6 @@ LIGHT_THEME = ThemeConfig(
 )
 
 
-def get_theme(name: Optional[str] = None) -> ThemeConfig:
+def get_theme(name: str | None = None) -> ThemeConfig:
     """Get a theme by name."""
     return {"dark": DARK_THEME, "light": LIGHT_THEME}.get(name or "dark", DARK_THEME)

@@ -57,6 +57,7 @@ class DiagnosticsTool(Tool):
         "required": [],
     }
     category = "ide"
+    read_only = True
 
     def __init__(self, context: ToolContext | None = None) -> None:
         super().__init__(context)
@@ -160,7 +161,7 @@ class DiagnosticsTool(Tool):
                     # Linters exit non-zero when they find issues
                     return ToolResult.success(f"Diagnostics for {file_path}:\n{combined}")
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 return ToolResult.error(f"Linter {cmd_name} timed out")
             except Exception as exc:
                 logger.debug(f"Linter {cmd_name} failed: {exc}")

@@ -88,28 +88,33 @@ def _build_messages(
         result.append({"role": "system", "content": "\n".join(parts)})
 
     for msg in messages:
-        result.append(_convert_message(msg))
+        result.extend(_convert_message(msg))
 
     return result
 
 
-def _convert_message(msg: dict[str, Any]) -> dict[str, Any]:
+def _convert_message(msg: dict[str, Any]) -> list[dict[str, Any]]:
     """Convert a single message from Anthropic to Azure OpenAI format.
+
+    One Anthropic message may expand into several OpenAI messages: a message
+    carrying N ``tool_result`` blocks (parallel tool calls) becomes N separate
+    ``role: "tool"`` messages.
 
     Args:
         msg: Message in Anthropic or OpenAI format.
 
     Returns:
-        Message dict in Azure OpenAI chat format.
+        One or more message dicts in Azure OpenAI chat format.
     """
     role = msg.get("role", "user")
     content = msg.get("content", "")
 
     if isinstance(content, str):
-        return msg
+        return [msg]
 
     openai_content: list[dict[str, Any]] = []
     tool_calls: list[dict[str, Any]] = []
+    tool_messages: list[dict[str, Any]] = []
 
     for block in content:
         if not isinstance(block, dict):
@@ -132,11 +137,11 @@ def _convert_message(msg: dict[str, Any]) -> dict[str, Any]:
                 },
             })
         elif block_type == "tool_result":
-            return {
+            tool_messages.append({
                 "role": "tool",
                 "tool_call_id": block.get("tool_use_id", ""),
                 "content": block.get("content", ""),
-            }
+            })
         elif block_type == "image":
             source = block.get("source", {})
             openai_content.append({
@@ -149,23 +154,26 @@ def _convert_message(msg: dict[str, Any]) -> dict[str, Any]:
                 },
             })
 
-    result: dict[str, Any] = {"role": role}
+    out: list[dict[str, Any]] = []
 
-    if openai_content:
-        if (
-            len(openai_content) == 1
-            and openai_content[0].get("type") == "text"
-        ):
-            result["content"] = openai_content[0]["text"]
+    if openai_content or tool_calls:
+        main: dict[str, Any] = {"role": role}
+        if openai_content:
+            if (
+                len(openai_content) == 1
+                and openai_content[0].get("type") == "text"
+            ):
+                main["content"] = openai_content[0]["text"]
+            else:
+                main["content"] = openai_content
         else:
-            result["content"] = openai_content
-    else:
-        result["content"] = ""
+            main["content"] = ""
+        if tool_calls:
+            main["tool_calls"] = tool_calls
+        out.append(main)
 
-    if tool_calls:
-        result["tool_calls"] = tool_calls
-
-    return result
+    out.extend(tool_messages)
+    return out
 
 
 def _map_finish_reason(finish_reason: str | None) -> str:
@@ -223,8 +231,12 @@ async def _stream_events(
         Normalized ``StreamEvent`` objects.
     """
     tool_calls_buffer: dict[int, dict[str, Any]] = {}
+    pending_usage: dict[str, int] = {}
+    final_stop_reason: str | None = None
 
-    async with response as r:
+    # httpx.Response is not an async context manager — close explicitly.
+    r = response
+    try:
         if r.status_code != 200:
             body = await r.aread()
             raise _map_http_error(r.status_code, body.decode(errors="replace"))
@@ -246,6 +258,15 @@ async def _stream_events(
             except json.JSONDecodeError:
                 logger.warning("Failed to parse Azure SSE data: %s", data_str[:200])
                 continue
+
+            # Usage arrives in a trailing chunk with empty choices
+            # (stream_options.include_usage) — capture before skipping.
+            chunk_usage = data.get("usage")
+            if chunk_usage:
+                pending_usage = {
+                    "input_tokens": chunk_usage.get("prompt_tokens", 0) or 0,
+                    "output_tokens": chunk_usage.get("completion_tokens", 0) or 0,
+                }
 
             choices = data.get("choices", [])
             if not choices:
@@ -314,22 +335,18 @@ async def _stream_events(
                         raw=data,
                     )
 
-                stop_reason = _map_finish_reason(finish_reason)
-                usage: dict[str, int] = {}
-                chunk_usage = data.get("usage")
-                if chunk_usage:
-                    usage = {
-                        "input_tokens": chunk_usage.get("prompt_tokens", 0),
-                        "output_tokens": chunk_usage.get("completion_tokens", 0),
-                    }
+                final_stop_reason = _map_finish_reason(finish_reason)
 
-                yield StreamEvent(
-                    type="message_delta",
-                    stop_reason=stop_reason,
-                    usage=usage,
-                    raw=data,
-                )
-                yield StreamEvent(type="message_stop", raw=data)
+        # Emit terminal events after the stream drains, so the trailing
+        # usage-only chunk is included.
+        yield StreamEvent(
+            type="message_delta",
+            stop_reason=final_stop_reason or "end_turn",
+            usage=pending_usage,
+        )
+        yield StreamEvent(type="message_stop", usage=pending_usage)
+    finally:
+        await r.aclose()
 
 
 def _build_response(

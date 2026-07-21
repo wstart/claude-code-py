@@ -10,8 +10,8 @@ configured, the tool returns the questions for the caller to handle.
 
 from __future__ import annotations
 
-import asyncio
-from typing import Any, Callable, Coroutine
+from collections.abc import Callable, Coroutine
+from typing import Any
 
 from claude_code.tools.base import Tool, ToolResult
 

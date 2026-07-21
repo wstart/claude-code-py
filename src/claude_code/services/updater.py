@@ -12,8 +12,6 @@ import json
 import subprocess
 import time
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Optional
 
 from claude_code.utils.logging import get_logger
 from claude_code.utils.path_utils import expand_user
@@ -49,9 +47,9 @@ class UpdateChecker:
 
     def __init__(self, current_version: str) -> None:
         self.current_version = current_version
-        self._cached_info: Optional[UpdateInfo] = None
+        self._cached_info: UpdateInfo | None = None
 
-    async def check(self) -> Optional[UpdateInfo]:
+    async def check(self) -> UpdateInfo | None:
         """Check PyPI for a newer version.
 
         Returns cached result if a check was done within the TTL window.
@@ -80,7 +78,7 @@ class UpdateChecker:
         self._save_cache(None)
         return None
 
-    async def install(self, version: Optional[str] = None) -> bool:
+    async def install(self, version: str | None = None) -> bool:
         """Install an update via pip.
 
         Args:
@@ -121,13 +119,13 @@ class UpdateChecker:
     # Internal
     # ------------------------------------------------------------------
 
-    async def _fetch_latest(self) -> Optional[UpdateInfo]:
+    async def _fetch_latest(self) -> UpdateInfo | None:
         """Fetch latest version info from PyPI."""
         import urllib.request
 
         loop = asyncio.get_running_loop()
 
-        def _do_fetch() -> Optional[UpdateInfo]:
+        def _do_fetch() -> UpdateInfo | None:
             try:
                 req = urllib.request.Request(
                     _PYPI_URL,
@@ -173,7 +171,7 @@ class UpdateChecker:
 
         return _parse(remote) > _parse(local)
 
-    def _load_cache(self) -> Optional[UpdateInfo]:
+    def _load_cache(self) -> UpdateInfo | None:
         """Load cached update info if still within TTL."""
         if not _CACHE_PATH.exists():
             return None
@@ -192,7 +190,7 @@ class UpdateChecker:
         except (json.JSONDecodeError, KeyError, TypeError, OSError):
             return None
 
-    def _save_cache(self, info: Optional[UpdateInfo]) -> None:
+    def _save_cache(self, info: UpdateInfo | None) -> None:
         """Save update check result to cache file."""
         try:
             _CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)

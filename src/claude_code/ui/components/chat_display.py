@@ -6,19 +6,17 @@ tight spacing, and clear visual hierarchy.
 
 from __future__ import annotations
 
-from enum import Enum
-from typing import Optional
+from enum import StrEnum
 
 from rich.console import Console
 from rich.markdown import Markdown
-from rich.panel import Panel
-from rich.table import Table
+from rich.padding import Padding
 from rich.text import Text
 
 from claude_code.ui.components.theme import ThemeConfig, get_theme
 
 
-class MessageRole(str, Enum):
+class MessageRole(StrEnum):
     USER = "user"
     ASSISTANT = "assistant"
     TOOL = "tool"
@@ -34,7 +32,7 @@ class DisplayMessage:
         content: str,
         tool_name: str = "",
         is_error: bool = False,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> None:
         self.role = role
         self.content = content
@@ -48,8 +46,8 @@ class ChatDisplay:
 
     def __init__(
         self,
-        console: Optional[Console] = None,
-        theme: Optional[ThemeConfig] = None,
+        console: Console | None = None,
+        theme: ThemeConfig | None = None,
     ) -> None:
         self.console = console or Console()
         self.theme = theme or get_theme("dark")
@@ -65,7 +63,7 @@ class ChatDisplay:
         elif message.role == MessageRole.ASSISTANT:
             self._render_assistant(message.content)
         elif message.role == MessageRole.TOOL:
-            self._render_tool(message)
+            self.show_result(message.tool_name, message.content, message.is_error)
         elif message.role == MessageRole.SYSTEM:
             self._render_system(message.content)
 
@@ -105,7 +103,7 @@ class ChatDisplay:
         # Content
         try:
             md = Markdown(text, code_theme=self.theme.code_theme)
-            self.console.print(md, padding=(0, 0, 0, 2))
+            self.console.print(Padding(md, (0, 0, 0, 2)))
         except Exception:
             self.console.print(f"  {text}")
         self.console.print()
@@ -124,7 +122,7 @@ class ChatDisplay:
         line.append(f"  {icon} ", style=color)
         line.append(name, style=f"bold {color}")
         if summary:
-            line.append(f"  ", style="")
+            line.append("  ", style="")
             line.append(summary, style=s.text_dim)
         self.console.print(line)
 
@@ -138,8 +136,6 @@ class ChatDisplay:
         display = result[:max_len] if truncated else result
 
         style = s.error if is_error else s.text_secondary
-        icon = "✗" if is_error else "✓"
-        color = s.error if is_error else s.accent_green
 
         lines = display.strip().split("\n")
         if len(lines) <= 8:

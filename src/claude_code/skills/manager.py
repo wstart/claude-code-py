@@ -7,7 +7,7 @@ capabilities with domain-specific knowledge and workflows.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from claude_code.skills.discovery import SkillDiscovery
 from claude_code.utils.logging import get_logger

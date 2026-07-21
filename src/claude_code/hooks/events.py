@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class HookEvent(str, Enum):
+class HookEvent(StrEnum):
     """Events that hooks can subscribe to."""
 
     PRE_TOOL_USE = "PreToolUse"
@@ -46,7 +46,7 @@ class HookPayload(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
-class HookDecision(str, Enum):
+class HookDecision(StrEnum):
     """Decision returned by a hook handler."""
 
     ALLOW = "allow"       # Proceed normally

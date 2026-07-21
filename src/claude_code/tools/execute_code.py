@@ -147,7 +147,7 @@ class ExecuteCodeTool(Tool):
                         proc.communicate(input=code.encode("utf-8")),
                         timeout=timeout,
                     )
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     proc.kill()
                     return ToolResult.error(
                         f"Execution timed out after {timeout}s"
@@ -168,7 +168,7 @@ class ExecuteCodeTool(Tool):
                         proc.communicate(),
                         timeout=timeout,
                     )
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     proc.kill()
                     return ToolResult.error(
                         f"Execution timed out after {timeout}s"

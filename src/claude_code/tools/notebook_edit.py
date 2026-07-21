@@ -44,7 +44,10 @@ class NotebookEditTool(Tool):
             },
             "cell_id": {
                 "type": "integer",
-                "description": "Zero-based cell index. Required for replace/delete; optional for insert (omit to insert at beginning).",
+                "description": (
+                    "Zero-based cell index. Required for replace/delete; "
+                    "optional for insert (omit to insert at beginning)."
+                ),
                 "minimum": 0,
             },
             "new_source": {
@@ -73,9 +76,8 @@ class NotebookEditTool(Tool):
         new_source: str | None = kwargs.get("new_source")
 
         if edit_mode not in _VALID_EDIT_MODES:
-            return ToolResult.error(
-                f"Invalid edit_mode '{edit_mode}'. Must be one of: {', '.join(sorted(_VALID_EDIT_MODES))}"
-            )
+            valid = ", ".join(sorted(_VALID_EDIT_MODES))
+            return ToolResult.error(f"Invalid edit_mode '{edit_mode}'. Must be one of: {valid}")
 
         path = Path(notebook_path_str).expanduser().resolve()
 
@@ -108,7 +110,8 @@ class NotebookEditTool(Tool):
 
         if cell_id is not None and (cell_id < 0 or cell_id >= len(cells)):
             return ToolResult.error(
-                f"cell_id {cell_id} out of range (notebook has {len(cells)} cells, 0-{len(cells) - 1})"
+                f"cell_id {cell_id} out of range "
+                f"(notebook has {len(cells)} cells, 0-{len(cells) - 1})"
             )
 
         # Dispatch
@@ -145,8 +148,9 @@ class NotebookEditTool(Tool):
         # Mark as read (content changed)
         self.context.mark_read(str(path))
 
+        cell_label = cell_id if cell_id is not None else "(new)"
         return ToolResult.success(
-            f"Notebook updated: {edit_mode} cell {cell_id if cell_id is not None else '(new)'} in {path.name}"
+            f"Notebook updated: {edit_mode} cell {cell_label} in {path.name}"
         )
 
 

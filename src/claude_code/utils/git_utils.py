@@ -1,10 +1,9 @@
 """Git repository utilities using subprocess."""
 
 import subprocess
-from typing import Optional
 
 
-def _run_git(*args: str, cwd: Optional[str] = None) -> Optional[str]:
+def _run_git(*args: str, cwd: str | None = None) -> str | None:
     """Run a git command and return stdout, or None on failure.
 
     Args:
@@ -29,7 +28,7 @@ def _run_git(*args: str, cwd: Optional[str] = None) -> Optional[str]:
         return None
 
 
-def is_git_repo(path: Optional[str] = None) -> bool:
+def is_git_repo(path: str | None = None) -> bool:
     """Check if the given path is inside a git repository.
 
     Args:
@@ -42,7 +41,7 @@ def is_git_repo(path: Optional[str] = None) -> bool:
     return result == "true"
 
 
-def get_repo_root(path: Optional[str] = None) -> Optional[str]:
+def get_repo_root(path: str | None = None) -> str | None:
     """Get the root directory of the git repository.
 
     Args:
@@ -54,7 +53,7 @@ def get_repo_root(path: Optional[str] = None) -> Optional[str]:
     return _run_git("rev-parse", "--show-toplevel", cwd=path)
 
 
-def get_current_branch(path: Optional[str] = None) -> Optional[str]:
+def get_current_branch(path: str | None = None) -> str | None:
     """Get the name of the current branch.
 
     Args:
@@ -66,7 +65,7 @@ def get_current_branch(path: Optional[str] = None) -> Optional[str]:
     return _run_git("rev-parse", "--abbrev-ref", "HEAD", cwd=path)
 
 
-def get_git_status(path: Optional[str] = None, porcelain: bool = True) -> Optional[str]:
+def get_git_status(path: str | None = None, porcelain: bool = True) -> str | None:
     """Get the output of `git status`.
 
     Args:
@@ -83,10 +82,10 @@ def get_git_status(path: Optional[str] = None, porcelain: bool = True) -> Option
 
 
 def get_git_diff(
-    path: Optional[str] = None,
+    path: str | None = None,
     staged: bool = False,
     stat: bool = False,
-) -> Optional[str]:
+) -> str | None:
     """Get the output of `git diff`.
 
     Args:
@@ -106,10 +105,10 @@ def get_git_diff(
 
 
 def get_git_log(
-    path: Optional[str] = None,
+    path: str | None = None,
     max_count: int = 10,
     oneline: bool = True,
-) -> Optional[str]:
+) -> str | None:
     """Get the output of `git log`.
 
     Args:
@@ -126,7 +125,7 @@ def get_git_log(
     return _run_git(*args, cwd=path)
 
 
-def get_git_remote_url(path: Optional[str] = None, remote: str = "origin") -> Optional[str]:
+def get_git_remote_url(path: str | None = None, remote: str = "origin") -> str | None:
     """Get the URL of a git remote.
 
     Args:
@@ -139,7 +138,7 @@ def get_git_remote_url(path: Optional[str] = None, remote: str = "origin") -> Op
     return _run_git("remote", "get-url", remote, cwd=path)
 
 
-def get_head_sha(path: Optional[str] = None, short: bool = True) -> Optional[str]:
+def get_head_sha(path: str | None = None, short: bool = True) -> str | None:
     """Get the SHA of the current HEAD commit.
 
     Args:

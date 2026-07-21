@@ -17,13 +17,10 @@ class CompactCommand(SlashCommand):
         if not context.query_engine:
             return "No active conversation to compact."
 
-        config = context.config
-        max_tokens = getattr(config, "max_tokens", 200_000) if config else 200_000
-
         api_msgs = context.query_engine.conversation.to_api_messages()
         original_count = len(api_msgs)
 
-        compressed = compress(api_msgs, max_tokens=max_tokens)
+        compressed = compress(api_msgs)
         context.query_engine._rebuild_conversation(compressed)
 
         return f"Compacted: {original_count} → {len(compressed)} messages"

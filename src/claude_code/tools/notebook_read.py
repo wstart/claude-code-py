@@ -24,6 +24,7 @@ class NotebookReadTool(Tool):
         "shown for reference. Handles code, markdown, and raw cells."
     )
     category = "file"
+    read_only = True
     input_schema: dict[str, Any] = {
         "type": "object",
         "properties": {
@@ -98,7 +99,7 @@ class NotebookReadTool(Tool):
                     lines.append("Output:")
                     lines.append(rendered)
 
-            lines.append(f"</cell>")
+            lines.append("</cell>")
             lines.append("")
 
         return ToolResult.success("\n".join(lines))

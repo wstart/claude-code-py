@@ -4,11 +4,11 @@ Provides multi-line input with history, tab completion for slash
 commands, and keyboard shortcuts for the interactive terminal.
 """
 
-from typing import Optional
+from collections.abc import Callable
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
-from prompt_toolkit.completion import Completer, Completion, WordCompleter
+from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import InMemoryHistory
@@ -40,7 +40,7 @@ class SlashCommandCompleter(Completer):
     Only activates when the input starts with '/'.
     """
 
-    def __init__(self, commands: Optional[list[str]] = None) -> None:
+    def __init__(self, commands: list[str] | None = None) -> None:
         """Initialize with available commands.
 
         Args:
@@ -71,7 +71,7 @@ class SlashCommandCompleter(Completer):
                 yield Completion(cmd, start_position=-len(text))
 
 
-def _build_keybindings(on_submit: Optional[callable] = None) -> KeyBindings:
+def _build_keybindings(on_submit: Callable[[], None] | None = None) -> KeyBindings:
     """Build key bindings for the input box.
 
     Args:
@@ -129,7 +129,7 @@ class InputBox:
     def __init__(
         self,
         placeholder: str = "enter command or question...",
-        commands: Optional[list[str]] = None,
+        commands: list[str] | None = None,
     ) -> None:
         """Initialize the input box.
 
@@ -143,7 +143,7 @@ class InputBox:
         self._style = _build_style()
         self._keybindings = _build_keybindings()
 
-    def get_input(self) -> Optional[str]:
+    def get_input(self) -> str | None:
         """Prompt for user input.
 
         Blocks until the user submits input (Enter) or cancels (Ctrl+C).
@@ -171,7 +171,7 @@ class InputBox:
         except (KeyboardInterrupt, EOFError):
             return None
 
-    async def get_input_async(self) -> Optional[str]:
+    async def get_input_async(self) -> str | None:
         """Async version of get_input.
 
         Returns:

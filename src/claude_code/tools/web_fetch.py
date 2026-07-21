@@ -7,9 +7,13 @@ in-memory for 15 minutes to avoid redundant fetches.
 
 from __future__ import annotations
 
+import asyncio
+import ipaddress
+import socket
 import time
 from html.parser import HTMLParser
 from typing import Any
+from urllib.parse import urlparse
 
 from claude_code.tools.base import Tool, ToolResult
 
@@ -22,8 +26,53 @@ _TIMEOUT_SECONDS = 30
 # Maximum response size to process (5 MB)
 _MAX_RESPONSE_SIZE = 5 * 1024 * 1024
 
+# Maximum redirects to follow (each is re-validated against the SSRF policy).
+_MAX_REDIRECTS = 5
+
 # In-memory cache: url -> (timestamp, markdown_text)
 _fetch_cache: dict[str, tuple[float, str]] = {}
+
+
+def _host_is_private(host: str) -> bool:
+    """Return True if *host* resolves to a non-public address.
+
+    Blocks loopback, private, link-local, reserved, multicast, and
+    unspecified ranges. If the host cannot be resolved, it is blocked.
+    """
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except socket.gaierror:
+        return True
+    for info in infos:
+        addr = info[4][0]
+        try:
+            ip = ipaddress.ip_address(addr)
+        except ValueError:
+            return True
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            return True
+    return False
+
+
+async def _validate_public_url(url: str) -> str | None:
+    """Return an error message if *url* is not a fetchable public URL."""
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        return f"Unsupported URL scheme: {parsed.scheme or '(none)'}"
+    host = parsed.hostname
+    if not host:
+        return f"URL has no host: {url}"
+    # DNS resolution can block; run it off the event loop.
+    if await asyncio.to_thread(_host_is_private, host):
+        return f"Refusing to fetch private or non-public address: {host}"
+    return None
 
 
 class WebFetchTool(Tool):
@@ -37,6 +86,7 @@ class WebFetchTool(Tool):
         "or private URLs."
     )
     category = "web"
+    read_only = True
     input_schema: dict[str, Any] = {
         "type": "object",
         "properties": {
@@ -73,16 +123,33 @@ class WebFetchTool(Tool):
                     f"[cached] {extracted}"
                 )
 
-        # Fetch
+        # Fetch, following redirects manually so every hop is re-validated
+        # against the SSRF policy (a public URL can 302 to an internal one).
         try:
             async with httpx.AsyncClient(
-                follow_redirects=True,
+                follow_redirects=False,
                 timeout=_TIMEOUT_SECONDS,
                 headers={
                     "User-Agent": "ClaudeCode/1.0 (compatible; bot)",
                 },
             ) as client:
-                response = await client.get(url)
+                current_url = url
+                response = None
+                for _ in range(_MAX_REDIRECTS + 1):
+                    err = await _validate_public_url(current_url)
+                    if err:
+                        return ToolResult.error(err)
+                    response = await client.get(current_url)
+                    if not response.is_redirect:
+                        break
+                    location = response.headers.get("location")
+                    if not location:
+                        break
+                    current_url = str(response.url.join(location))
+                else:
+                    return ToolResult.error(
+                        f"Too many redirects fetching {url}"
+                    )
         except httpx.TimeoutException:
             return ToolResult.error(f"Timeout fetching {url}")
         except httpx.ConnectError:
@@ -90,6 +157,8 @@ class WebFetchTool(Tool):
         except httpx.HTTPError as exc:
             return ToolResult.error(f"HTTP error fetching {url}: {exc}")
 
+        if response is None:
+            return ToolResult.error(f"No response fetching {url}")
         if response.status_code == 404:
             return ToolResult.error(f"Page not found (404): {url}")
         if response.status_code >= 400:
@@ -97,7 +166,7 @@ class WebFetchTool(Tool):
                 f"HTTP {response.status_code} fetching {url}"
             )
 
-        # Check size
+        # Check size (bounded read below still guards memory)
         content = response.text
         if len(content) > _MAX_RESPONSE_SIZE:
             content = content[:_MAX_RESPONSE_SIZE]

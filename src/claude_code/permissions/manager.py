@@ -14,15 +14,14 @@ Layers are evaluated in order:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from dataclasses import dataclass
+from typing import Any
 
 from claude_code.core.config import AppConfig
 from claude_code.permissions.modes import (
     PermissionMode,
     ToolRisk,
     get_risk_level,
-    needs_permission,
 )
 from claude_code.permissions.prompt import (
     PermissionPrompt,
@@ -56,8 +55,8 @@ class PermissionDecision:
     allowed: bool
     reason: str
     risk_level: ToolRisk = ToolRisk.SAFE
-    rule_matched: Optional[str] = None
-    sandbox_info: Optional[dict[str, Any]] = None
+    rule_matched: str | None = None
+    sandbox_info: dict[str, Any] | None = None
 
     def __repr__(self) -> str:
         status = "ALLOWED" if self.allowed else "DENIED"
@@ -150,14 +149,14 @@ class PermissionManager:
         if rule_result == "allow":
             return PermissionDecision(
                 allowed=True,
-                reason=f"Allowed by configuration rule",
+                reason="Allowed by configuration rule",
                 risk_level=risk,
                 rule_matched=f"allow:{tool_name}",
             )
         if rule_result == "deny":
             return PermissionDecision(
                 allowed=False,
-                reason=f"Denied by configuration rule",
+                reason="Denied by configuration rule",
                 risk_level=risk,
                 rule_matched=f"deny:{tool_name}",
             )
@@ -209,7 +208,7 @@ class PermissionManager:
         tool_name: str,
         params: dict[str, Any],
         risk: ToolRisk,
-    ) -> Optional[PermissionDecision]:
+    ) -> PermissionDecision | None:
         """Apply the permission mode rules.
 
         Returns a decision if the mode is conclusive, or ``None`` if
@@ -302,7 +301,7 @@ class PermissionManager:
     def _get_sandbox_info(
         self,
         params: dict[str, Any],
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Build sandbox metadata for a Bash command."""
         if not self._sandbox.available:
             return None

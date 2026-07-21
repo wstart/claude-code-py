@@ -1,7 +1,6 @@
 """Spinner — animated loading indicator with cyberpunk aesthetic."""
 
 import time
-from typing import Optional
 
 from rich.console import Console
 from rich.live import Live
@@ -18,12 +17,12 @@ class Spinner:
 
     def __init__(
         self,
-        console: Optional[Console] = None,
-        theme: Optional[ThemeConfig] = None,
+        console: Console | None = None,
+        theme: ThemeConfig | None = None,
     ) -> None:
         self.console = console or Console()
         self.theme = theme or get_theme("dark")
-        self._live: Optional[Live] = None
+        self._live: Live | None = None
         self._start_time: float = 0
         self._action: str = "Thinking"
         self._frame: int = 0

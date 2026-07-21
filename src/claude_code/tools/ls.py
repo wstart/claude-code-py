@@ -29,6 +29,7 @@ class LSTool(Tool):
         "modification times. Supports ignore patterns to exclude entries."
     )
     category = "file"
+    read_only = True
     input_schema: dict[str, Any] = {
         "type": "object",
         "properties": {

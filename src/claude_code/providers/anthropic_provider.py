@@ -98,6 +98,21 @@ def _convert_tools(
 async def _stream_events(
     stream: anthropic.AsyncMessageStream,
 ) -> AsyncIterator[StreamEvent]:
+    """Map Anthropic SDK errors raised during streaming to ProviderError.
+
+    The SDK stream is lazy — the request is issued on first iteration, so
+    HTTP errors (429/5xx) surface here rather than at ``create_message``.
+    """
+    try:
+        async for event in _stream_events_raw(stream):
+            yield event
+    except anthropic.APIError as exc:
+        raise _map_error(exc) from exc
+
+
+async def _stream_events_raw(
+    stream: anthropic.AsyncMessageStream,
+) -> AsyncIterator[StreamEvent]:
     """Convert Anthropic SDK stream to our unified StreamEvent format.
 
     Handles all Anthropic event types:

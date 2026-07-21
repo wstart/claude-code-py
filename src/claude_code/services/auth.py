@@ -19,8 +19,6 @@ import webbrowser
 from pathlib import Path
 from typing import Any
 
-import httpx
-
 logger = logging.getLogger(__name__)
 
 # Default paths
@@ -277,9 +275,18 @@ class AuthManager:
             path.parent.mkdir(parents=True, exist_ok=True)
 
             data = {"api_key": token}
-            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            # Create the file with 0600 from the start so the token is never
+            # briefly world-readable between write and chmod.
+            fd = os.open(
+                str(path),
+                os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
+                _SECURE_PERMISSIONS,
+            )
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(json.dumps(data, indent=2))
 
-            # Set secure permissions (0600)
+            # O_CREAT's mode only applies to a newly-created file; enforce
+            # secure permissions in case the file already existed.
             os.chmod(path, _SECURE_PERMISSIONS)
         except OSError as exc:
             raise AuthError(

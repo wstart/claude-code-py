@@ -33,6 +33,7 @@ class BashOutputTool(Tool):
         "progress of a long-running background command."
     )
     category = "shell"
+    read_only = True
     input_schema: dict[str, Any] = {
         "type": "object",
         "properties": {
@@ -112,7 +113,7 @@ class BashOutputTool(Tool):
                     if not line_bytes:
                         break
                     lines.append(line_bytes.decode("utf-8", errors="replace"))
-            except (TimeoutError, asyncio.TimeoutError):
+            except TimeoutError:
                 pass
             return "".join(lines)
 

@@ -5,7 +5,6 @@ import platform
 import shutil
 import sys
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -121,7 +120,7 @@ def is_tty() -> bool:
     return hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
 
 
-def get_env_or_default(key: str, default: Optional[str] = None) -> Optional[str]:
+def get_env_or_default(key: str, default: str | None = None) -> str | None:
     """Get an environment variable with a default value.
 
     Args:

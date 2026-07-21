@@ -118,7 +118,7 @@ class KillShellTool(Tool):
         try:
             await asyncio.wait_for(proc.wait(), timeout=3.0)
             return True
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pass
 
         # Force kill

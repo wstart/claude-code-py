@@ -14,6 +14,7 @@ from claude_code.tools.base import Tool, ToolContext, ToolResult
 
 if TYPE_CHECKING:
     from claude_code.providers.base import BaseProvider
+    from claude_code.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ class TaskTool(Tool):
         "Returns a consolidated summary of findings."
     )
     category = "orchestration"
+    read_only = True
     input_schema: dict[str, Any] = {
         "type": "object",
         "properties": {

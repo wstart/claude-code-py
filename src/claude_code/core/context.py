@@ -6,6 +6,7 @@ the system prompt and recent messages while summarizing older
 tool results and merging old conversation turns.
 """
 
+import json
 from typing import Any
 
 from claude_code.utils.text import count_tokens_approx
@@ -47,6 +48,10 @@ def _estimate_message_tokens(message: dict[str, Any]) -> int:
                     for sub in text:
                         if isinstance(sub, dict):
                             total += count_tokens_approx(sub.get("text", ""))
+                # tool_use payload lives under "input", not "text"/"content".
+                tool_input = block.get("input")
+                if isinstance(tool_input, dict):
+                    total += count_tokens_approx(json.dumps(tool_input))
             elif isinstance(block, str):
                 total += count_tokens_approx(block)
         return total

@@ -4,7 +4,6 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Optional
 
 # Default log directory under user's home
 _LOG_DIR = Path.home() / ".claude" / "logs"
@@ -18,9 +17,9 @@ _loggers: dict[str, logging.Logger] = {}
 
 def setup_logging(
     level: str = "INFO",
-    debug_categories: Optional[list[str]] = None,
-    log_file: Optional[str] = None,
-    log_dir: Optional[Path] = None,
+    debug_categories: list[str] | None = None,
+    log_file: str | None = None,
+    log_dir: Path | None = None,
 ) -> logging.Logger:
     """Configure the application-wide logging.
 
@@ -106,9 +105,9 @@ def _enable_debug_category(category: str) -> None:
 
 
 def _resolve_log_path(
-    log_file: Optional[str] = None,
-    log_dir: Optional[Path] = None,
-) -> Optional[Path]:
+    log_file: str | None = None,
+    log_dir: Path | None = None,
+) -> Path | None:
     """Determine the log file path.
 
     Returns None if the CLAUDE_NO_LOG env var is set.

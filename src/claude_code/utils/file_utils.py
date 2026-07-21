@@ -5,7 +5,6 @@ import tempfile
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import chardet
 
@@ -38,8 +37,8 @@ _NULL_BYTE_THRESHOLD = 0.01
 
 def read_file(
     path: str | Path,
-    encoding: Optional[str] = None,
-    max_size: Optional[int] = None,
+    encoding: str | None = None,
+    max_size: int | None = None,
 ) -> str:
     """Read a file with automatic encoding detection.
 
@@ -74,10 +73,33 @@ def read_file(
     return raw.decode(encoding, errors="replace")
 
 
+def read_file_with_encoding(
+    path: str | Path,
+    sample_size: int = 65536,
+) -> tuple[str, str]:
+    """Read a text file and report the encoding used.
+
+    Encoding is detected from a bounded prefix (``sample_size`` bytes) so
+    detection stays fast on large files. Returns ``(text, encoding)`` so a
+    caller can write the file back with the same encoding — this keeps the
+    Read/Edit tools consistent on non-UTF-8 files.
+
+    Raises:
+        FileNotFoundError / PermissionError / OSError from the read.
+    """
+    raw = Path(path).read_bytes()
+    detected = chardet.detect(raw[:sample_size])
+    encoding = detected.get("encoding") or "utf-8"
+    try:
+        return raw.decode(encoding), encoding
+    except (UnicodeDecodeError, LookupError):
+        return raw.decode("utf-8", errors="replace"), "utf-8"
+
+
 async def read_file_async(
     path: str | Path,
-    encoding: Optional[str] = None,
-    max_size: Optional[int] = None,
+    encoding: str | None = None,
+    max_size: int | None = None,
 ) -> str:
     """Async version of read_file.
 

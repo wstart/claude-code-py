@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
-from typing import Optional
 
 import click
 
@@ -51,7 +50,7 @@ class _ClaudeGroup(click.Group):
         # No subcommand — run the default behavior
         self._run_default(ctx, query)
 
-    def _run_default(self, ctx: click.Context, query: Optional[str]) -> None:
+    def _run_default(self, ctx: click.Context, query: str | None) -> None:
         """Run the default behavior when no subcommand is invoked."""
         # Get option values from context
         print_mode = ctx.params.get("print_mode", False)
@@ -182,17 +181,17 @@ class _ClaudeGroup(click.Group):
 def main(
     print_mode: bool,
     continue_session: bool,
-    resume_session: Optional[str],
-    model: Optional[str],
-    permission_mode: Optional[str],
-    output_format: Optional[str],
+    resume_session: str | None,
+    model: str | None,
+    permission_mode: str | None,
+    output_format: str | None,
     verbose: bool,
-    max_turns: Optional[int],
-    max_budget_usd: Optional[float],
-    system_prompt: Optional[str],
+    max_turns: int | None,
+    max_budget_usd: float | None,
+    system_prompt: str | None,
     add_dir: tuple[str, ...],
     dangerously_skip_permissions: bool,
-    effort: Optional[str],
+    effort: str | None,
 ) -> None:
     """Claude Code — an agentic coding assistant in your terminal.
 
@@ -203,10 +202,10 @@ def main(
 
 
 async def _run_app(
-    query: Optional[str],
+    query: str | None,
     print_mode: bool,
     continue_session: bool,
-    resume_session: Optional[str],
+    resume_session: str | None,
     overrides: dict,
 ) -> None:
     """Async entry point that initializes and runs the application.
@@ -245,7 +244,7 @@ async def _run_app(
         await _run_interactive_mode(config, continue_session, resume_session)
 
 
-async def _run_print_mode(query: Optional[str], config) -> None:
+async def _run_print_mode(query: str | None, config) -> None:
     """Non-interactive mode: process query and print result."""
     if not query:
         if not sys.stdin.isatty():
@@ -273,7 +272,7 @@ async def _run_print_mode(query: Optional[str], config) -> None:
 async def _run_interactive_mode(
     config,
     continue_session: bool,
-    resume_session: Optional[str],
+    resume_session: str | None,
 ) -> None:
     """Interactive mode: REPL with rich UI."""
     from claude_code.core.app import ClaudeApp

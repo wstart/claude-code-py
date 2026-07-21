@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Any
 from claude_code.utils.logging import get_logger
 
 if TYPE_CHECKING:
-    from claude_code.mcp.client import MCPClient
     from claude_code.mcp.server_manager import MCPServerManager
     from claude_code.tools.base import ToolContext
 

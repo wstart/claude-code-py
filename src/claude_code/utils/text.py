@@ -1,7 +1,6 @@
 """Text utility functions."""
 
 import re
-from typing import Optional
 
 # Approximate ratio: 1 token ≈ 4 characters for English text
 _CHARS_PER_TOKEN = 4
@@ -97,7 +96,7 @@ def wrap_text(text: str, width: int, indent: int = 0) -> str:
     return "\n".join(lines)
 
 
-def pluralize(count: int, singular: str, plural: Optional[str] = None) -> str:
+def pluralize(count: int, singular: str, plural: str | None = None) -> str:
     """Return singular or plural form based on count.
 
     Args:

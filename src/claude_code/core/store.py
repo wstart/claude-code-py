@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import copy
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any
 
 from claude_code.core.message import Conversation, CostInfo
 
@@ -35,7 +36,7 @@ class AppState:
 
     # Conversation state
     messages: list[dict[str, Any]] = field(default_factory=list)
-    current_session: Optional[Conversation] = None
+    current_session: Conversation | None = None
 
     # Configuration
     config: dict[str, Any] = field(default_factory=dict)
@@ -54,7 +55,7 @@ class AppState:
 
     # UI state
     is_streaming: bool = False
-    current_tool: Optional[str] = None
+    current_tool: str | None = None
 
     # Session metadata
     session_id: str = ""
@@ -62,7 +63,7 @@ class AppState:
 
 
 # Callback type for state subscribers
-Subscriber = Callable[["AppState", Optional[dict[str, Any]]], None]
+Subscriber = Callable[["AppState", dict[str, Any] | None], None]
 
 
 class Store:
@@ -72,7 +73,7 @@ class Store:
     All mutations are protected by an asyncio lock.
     """
 
-    def __init__(self, initial_state: Optional[AppState] = None) -> None:
+    def __init__(self, initial_state: AppState | None = None) -> None:
         self._state: AppState = initial_state or AppState()
         self._subscribers: list[Subscriber] = []
         self._lock = asyncio.Lock()
@@ -154,7 +155,7 @@ class Store:
         self._state = AppState()
         self._notify(None)
 
-    def _notify(self, updates: Optional[dict[str, Any]]) -> None:
+    def _notify(self, updates: dict[str, Any] | None) -> None:
         """Notify all subscribers of a state change.
 
         Args:
@@ -170,7 +171,7 @@ class Store:
 
 
 # Singleton store instance
-_global_store: Optional[Store] = None
+_global_store: Store | None = None
 
 
 def get_store() -> Store:

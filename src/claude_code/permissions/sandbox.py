@@ -13,9 +13,7 @@ Supported platforms:
 from __future__ import annotations
 
 import shutil
-import sys
 from dataclasses import dataclass, field
-from typing import Optional
 
 from claude_code.utils.logging import get_logger
 from claude_code.utils.platform import get_os_info
@@ -74,7 +72,7 @@ def is_sandbox_available() -> bool:
     return False
 
 
-def _get_sandbox_backend() -> Optional[str]:
+def _get_sandbox_backend() -> str | None:
     """Return the name of the best available sandbox backend."""
     os_info = get_os_info()
 
@@ -220,7 +218,7 @@ class SandboxRunner:
             #                    "/bin/sh", "-c", "npm test"]
     """
 
-    def __init__(self, config: Optional[SandboxConfig] = None) -> None:
+    def __init__(self, config: SandboxConfig | None = None) -> None:
         self.config = config or SandboxConfig()
         self._backend = _get_sandbox_backend()
 
@@ -230,14 +228,14 @@ class SandboxRunner:
         return self._backend is not None
 
     @property
-    def backend(self) -> Optional[str]:
+    def backend(self) -> str | None:
         """Name of the detected sandbox backend, or ``None``."""
         return self._backend
 
     def wrap_command(
         self,
         cmd: str,
-        config: Optional[SandboxConfig] = None,
+        config: SandboxConfig | None = None,
     ) -> list[str]:
         """Wrap a shell command with sandbox restrictions.
 
@@ -272,8 +270,8 @@ class SandboxRunner:
 
     def _wrap_macos(self, cmd: str, config: SandboxConfig) -> list[str]:
         """Wrap with macOS sandbox-exec."""
-        import tempfile
         import os
+        import tempfile
 
         profile = create_seatbelt_profile(config)
 

@@ -7,15 +7,13 @@ interactive confirmation before execution.
 
 from __future__ import annotations
 
-from enum import Enum
-from typing import Optional
-
+from enum import StrEnum
 
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
 
-class PermissionMode(str, Enum):
+class PermissionMode(StrEnum):
     """How the system handles tool-call permissions."""
 
     MANUAL = "manual"       # Ask user for every tool call
@@ -24,7 +22,7 @@ class PermissionMode(str, Enum):
     BYPASS = "bypass"       # Skip all permission checks (DANGEROUS)
 
 
-class ToolRisk(str, Enum):
+class ToolRisk(StrEnum):
     """Risk classification for a single tool call."""
 
     SAFE = "safe"           # Read-only (Read, Glob, Grep, LS)

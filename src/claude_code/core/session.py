@@ -12,7 +12,7 @@ import time
 import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 def _project_hash(working_directory: str) -> str:
@@ -79,6 +79,17 @@ class Session:
         self.metadata.message_count = len(self.messages)
         self.metadata.updated_at = time.time()
 
+    def replace_messages(self, messages: list[dict[str, Any]]) -> None:
+        """Replace all stored messages with API-format messages.
+
+        Used to persist the full conversation (including tool_use and
+        tool_result blocks) rather than a text-only summary, so a resumed
+        session keeps its complete tool history.
+        """
+        self.messages = list(messages)
+        self.metadata.message_count = len(self.messages)
+        self.metadata.updated_at = time.time()
+
     def to_dict(self) -> dict[str, Any]:
         """Serialize the full session to a dictionary."""
         return {
@@ -106,7 +117,7 @@ class SessionManager:
         working_directory: The project root for session storage.
     """
 
-    def __init__(self, working_directory: Optional[str] = None) -> None:
+    def __init__(self, working_directory: str | None = None) -> None:
         """Initialize the session manager.
 
         Args:
@@ -171,7 +182,7 @@ class SessionManager:
         )
         return filepath
 
-    def load_session(self, session_id: str) -> Optional[Session]:
+    def load_session(self, session_id: str) -> Session | None:
         """Load a session by ID.
 
         Args:
@@ -210,7 +221,7 @@ class SessionManager:
         sessions.sort(key=lambda s: s.updated_at, reverse=True)
         return sessions[:limit]
 
-    def get_latest_session(self) -> Optional[Session]:
+    def get_latest_session(self) -> Session | None:
         """Get the most recently updated session.
 
         Returns:

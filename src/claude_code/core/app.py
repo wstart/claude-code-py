@@ -10,15 +10,14 @@ UI, and sessions. Heavy work is delegated to:
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 import signal
 import sys
-from typing import Any, Optional
+from typing import Any
 
 from claude_code.core.config import AppConfig, load_config
-from claude_code.core.message import Conversation, Message
+from claude_code.core.message import api_message_text
 from claude_code.core.query_engine import QueryEngine, QueryEngineCallbacks
 from claude_code.core.session import Session, SessionManager
 from claude_code.core.store import Store
@@ -29,14 +28,14 @@ logger = logging.getLogger(__name__)
 class ClaudeApp:
     """Top-level application orchestrator — thin coordination layer."""
 
-    def __init__(self, config: Optional[AppConfig] = None) -> None:
+    def __init__(self, config: AppConfig | None = None) -> None:
         self.config = config or load_config()
         self.store = Store()
         self.session_manager = SessionManager(
             working_directory=self.config.working_directory,
         )
-        self.session: Optional[Session] = None
-        self.query_engine: Optional[QueryEngine] = None
+        self.session: Session | None = None
+        self.query_engine: QueryEngine | None = None
         self.permission_manager: Any = None
         self.hook_manager: Any = None
         self.ui: Any = None
@@ -86,15 +85,15 @@ class ClaudeApp:
     async def setup(self) -> None:
         """Initialize subsystems. Provider is deferred to first use."""
         # Tools — lazy factory
-        from claude_code.tools.factory import create_tool_registry
         from claude_code.tools.base import ToolContext
+        from claude_code.tools.factory import create_tool_registry
 
         ctx = ToolContext(cwd=self.config.working_directory)
         self.tool_registry = create_tool_registry(ctx)
 
         # Permissions + Hooks (lazy imports)
-        from claude_code.permissions.manager import PermissionManager
         from claude_code.hooks.manager import HookManager
+        from claude_code.permissions.manager import PermissionManager
 
         self.permission_manager = PermissionManager(config=self.config)
         self.hook_manager = HookManager(config=getattr(self.config, "hooks", {}))
@@ -122,7 +121,9 @@ class ClaudeApp:
         # Check env
         issues = []
         if not api_key:
-            issues.append("API Key 未设置 (检查 .env 中的 ANTHROPIC_AUTH_TOKEN 或 ANTHROPIC_API_KEY)")
+            issues.append(
+                "API Key 未设置 (检查 .env 中的 ANTHROPIC_AUTH_TOKEN 或 ANTHROPIC_API_KEY)"
+            )
         if not base_url:
             issues.append("Base URL 未设置 (检查 .env 中的 ANTHROPIC_BASE_URL)")
 
@@ -178,7 +179,9 @@ class ClaudeApp:
                 return False, detail
 
         except httpx.ConnectError as e:
-            return False, f"无法连接到 API:\n  URL: {url}\n  错误: {e}\n  → 检查网络或 Base URL 是否正确"
+            return False, (
+                f"无法连接到 API:\n  URL: {url}\n  错误: {e}\n  → 检查网络或 Base URL 是否正确"
+            )
         except httpx.TimeoutException:
             return False, f"连接超时:\n  URL: {url}\n  → 检查网络或 Base URL"
         except Exception as e:
@@ -201,7 +204,7 @@ class ClaudeApp:
     async def run_interactive(
         self,
         resume: bool = False,
-        resume_session_id: Optional[str] = None,
+        resume_session_id: str | None = None,
     ) -> None:
         """Run the interactive terminal session."""
         await self.setup()
@@ -211,8 +214,8 @@ class ClaudeApp:
         elif resume_session_id:
             await self.resume_session(resume_session_id)
 
-        from claude_code.ui.app_ui import AppUI
         from claude_code.core.slash import SlashDispatcher
+        from claude_code.ui.app_ui import AppUI
 
         self.ui = AppUI()
         self.ui.update_status(
@@ -235,7 +238,7 @@ class ClaudeApp:
             on_usage=lambda u: self.ui and self.ui.update_status(
                 tokens_used=u.get("input_tokens", 0) + u.get("output_tokens", 0)
             ),
-            on_spinner_show=lambda l: self.ui and self.ui.show_spinner(l),
+            on_spinner_show=lambda label: self.ui and self.ui.show_spinner(label),
             on_spinner_hide=lambda: self.ui and self.ui.hide_spinner(),
         )
 
@@ -292,10 +295,12 @@ class ClaudeApp:
                 if result.text and not had_stream:
                     self.ui.display_assistant_message(result.text)
 
-                if self.session:
-                    self.session.add_message("user", user_input)
-                    if result.text:
-                        self.session.add_message("assistant", result.text)
+                if self.session and self.query_engine:
+                    # Persist the full conversation (tool_use / tool_result
+                    # blocks included) so resume keeps the tool history.
+                    self.session.replace_messages(
+                        self.query_engine.conversation.to_api_messages()
+                    )
                     self.session_manager.save_session(self.session)
 
                 if self.query_engine:
@@ -334,7 +339,7 @@ class ClaudeApp:
         finally:
             await self.teardown()
 
-    async def resume_session(self, session_id: Optional[str] = None) -> None:
+    async def resume_session(self, session_id: str | None = None) -> None:
         if session_id:
             loaded = self.session_manager.load_session(session_id)
         else:
@@ -344,16 +349,19 @@ class ClaudeApp:
 
         self.session = loaded
         if self.query_engine:
-            conv = Conversation()
-            for msg_data in loaded.messages:
-                role = msg_data.get("role", "user")
-                content = msg_data.get("content", "")
-                msg = (Message.user(content) if role == "user" else Message.assistant(content)) if isinstance(content, str) else Message(role=role, content=content)
-                conv.add_message(msg)
-                if self.ui:
-                    text = content if isinstance(content, str) else str(content)
-                    (self.ui.display_user_message if role == "user" else self.ui.display_assistant_message)(text)
-            self.query_engine.conversation = conv
+            # Rebuild typed content blocks (text/tool_use/tool_result) so
+            # the resumed conversation keeps its full tool history.
+            self.query_engine.restore_conversation(loaded.messages)
+            if self.ui:
+                for msg_data in loaded.messages:
+                    role = msg_data.get("role", "user")
+                    text = api_message_text(msg_data.get("content", ""))
+                    if not text:
+                        continue
+                    if role == "user":
+                        self.ui.display_user_message(text)
+                    else:
+                        self.ui.display_assistant_message(text)
 
     # ------------------------------------------------------------------
     # Factory

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import re
-from typing import Any
 
 from claude_code.skills.commands.base import CommandContext, SlashCommand
 

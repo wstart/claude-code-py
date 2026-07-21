@@ -42,6 +42,9 @@ class InitCommand(SlashCommand):
 
         try:
             claude_md.write_text(template, encoding="utf-8")
-            return f"Created CLAUDE.md at {claude_md}\nEdit it to add project-specific instructions."
+            return (
+                f"Created CLAUDE.md at {claude_md}\n"
+                "Edit it to add project-specific instructions."
+            )
         except OSError as exc:
             return f"Failed to create CLAUDE.md: {exc}"

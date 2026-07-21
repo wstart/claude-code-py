@@ -12,6 +12,7 @@ from typing import Any
 
 from claude_code.tools.base import Tool, ToolResult
 from claude_code.tools.edit import _find_and_replace, _strip_line_numbers
+from claude_code.utils.file_utils import read_file_with_encoding
 
 
 class MultiEditTool(Tool):
@@ -88,14 +89,19 @@ class MultiEditTool(Tool):
                 )
 
         # -- read or initialise content ------------------------------------
+        encoding = "utf-8"
+        uses_crlf = False
         if is_creation:
             content = ""
             path.parent.mkdir(parents=True, exist_ok=True)
         else:
             try:
-                content = path.read_text(encoding="utf-8")
+                raw_content, encoding = read_file_with_encoding(path)
             except (PermissionError, OSError) as exc:
                 return ToolResult.error(f"Cannot read file: {exc}")
+            # Normalise line endings for matching; restored on write.
+            uses_crlf = "\r\n" in raw_content
+            content = raw_content.replace("\r\n", "\n")
 
         original_content = content
 
@@ -129,8 +135,13 @@ class MultiEditTool(Tool):
             return ToolResult.success("No changes — edits produced identical content.")
 
         # -- write back ----------------------------------------------------
+        out = content.replace("\n", "\r\n") if uses_crlf else content
         try:
-            path.write_text(content, encoding="utf-8")
+            data = out.encode(encoding)
+        except (UnicodeEncodeError, LookupError):
+            data = out.encode("utf-8")
+        try:
+            path.write_bytes(data)
         except (PermissionError, OSError) as exc:
             return ToolResult.error(f"Failed to write file: {exc}")
 

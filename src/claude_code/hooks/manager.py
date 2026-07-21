@@ -92,6 +92,10 @@ class HookManager:
         Returns:
             Aggregated HookResult.
         """
+        # PreToolUse gates a tool from running — if such a hook can't reach
+        # a clean decision, block rather than silently allow.
+        fail_closed = event == HookEvent.PRE_TOOL_USE
+
         bucket = self._hooks.get(event, [])
         for priority, entry in bucket:
             if not entry.enabled:
@@ -102,6 +106,7 @@ class HookManager:
             )
             result = await self._executor.execute(
                 entry.command, payload, timeout=entry.timeout,
+                fail_closed=fail_closed,
             )
             if result.decision != HookDecision.ALLOW:
                 logger.info(

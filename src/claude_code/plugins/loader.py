@@ -10,7 +10,7 @@ import importlib
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from claude_code.utils.logging import get_logger
 from claude_code.utils.path_utils import expand_user

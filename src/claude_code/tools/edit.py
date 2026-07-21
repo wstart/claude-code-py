@@ -3,8 +3,12 @@
 Mirrors Claude Code's TypeScript ``Edit`` tool semantics:
 - Requires the file to have been read first.
 - Fails if ``old_string`` is not found or is ambiguous (multiple matches).
-- Falls back to normalised-whitespace matching when exact match fails.
 - Returns a unified diff of the changes made.
+
+Matching is exact. Line endings are normalised to ``\\n`` for matching and
+the original CRLF style is restored on write, but whitespace is never
+fuzzily normalised — an approximate match could silently edit the wrong
+line, so a failed exact match is reported as an error instead.
 """
 
 from __future__ import annotations
@@ -15,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from claude_code.tools.base import Tool, ToolResult
+from claude_code.utils.file_utils import read_file_with_encoding
 
 # Regex used to strip ``cat -n`` line-number prefixes that the model
 # sometimes echoes back into ``old_string``.
@@ -26,17 +31,11 @@ def _strip_line_numbers(text: str) -> str:
     return _LINE_NUM_RE.sub("", text)
 
 
-def _normalise_whitespace(text: str) -> str:
-    """Collapse runs of whitespace to a single space per line."""
-    return "\n".join(" ".join(line.split()) for line in text.splitlines())
-
-
 class EditTool(Tool):
     """Replace an exact string occurrence in a file.
 
     The ``old_string`` must match exactly (after optional line-number
-    stripping).  If the exact match fails, a fallback pass normalises
-    whitespace before comparing.
+    stripping and CRLF normalisation).
     """
 
     name = "Edit"
@@ -94,9 +93,14 @@ class EditTool(Tool):
 
         # -- read current content ------------------------------------------
         try:
-            content = path.read_text(encoding="utf-8")
+            raw_content, encoding = read_file_with_encoding(path)
         except (PermissionError, OSError) as exc:
             return ToolResult.error(f"Cannot read file: {exc}")
+
+        # Normalise line endings for matching; restore the original style
+        # on write so a CRLF file is not silently converted to LF.
+        uses_crlf = "\r\n" in raw_content
+        content = raw_content.replace("\r\n", "\n")
 
         # Strip line-number prefixes the model may have included
         old_string = _strip_line_numbers(old_string)
@@ -111,8 +115,13 @@ class EditTool(Tool):
             return ToolResult.success("No changes needed — old_string equals new_string.")
 
         # -- write back ---------------------------------------------------
+        out = new_content.replace("\n", "\r\n") if uses_crlf else new_content
         try:
-            path.write_text(new_content, encoding="utf-8")
+            data = out.encode(encoding)
+        except (UnicodeEncodeError, LookupError):
+            data = out.encode("utf-8")
+        try:
+            path.write_bytes(data)
         except (PermissionError, OSError) as exc:
             return ToolResult.error(f"Failed to write file: {exc}")
 
@@ -135,20 +144,19 @@ def _find_and_replace(
     new: str,
     replace_all: bool,
 ) -> tuple[str, str | None]:
-    """Return ``(new_content, error_message)``.
+    """Return ``(new_content, error_message)`` using exact matching only.
 
     On success, returns ``(new_content, None)``.
     On failure, returns ``(original_content, error_message)``.
 
-    Tries exact match first, then normalised-whitespace fallback.
+    Matching is exact — no whitespace normalisation. An approximate match
+    can land on the wrong occurrence and silently corrupt the file, so a
+    failed match is reported rather than guessed.
     """
     count = content.count(old)
 
-    # Exact match
-    if count == 1 or (replace_all and count > 0):
-        if replace_all:
-            return content.replace(old, new), None
-        return content.replace(old, new, 1), None
+    if count == 0:
+        return content, "old_string not found in file."
 
     if count > 1 and not replace_all:
         return content, (
@@ -156,90 +164,9 @@ def _find_and_replace(
             "Make it more specific or set replace_all=true."
         )
 
-    # Fallback: normalised whitespace matching
-    norm_content = _normalise_whitespace(content)
-    norm_old = _normalise_whitespace(old)
-    norm_count = norm_content.count(norm_old)
-
-    if norm_count == 0:
-        return content, (
-            "old_string not found in file "
-            "(tried exact and whitespace-normalised match)."
-        )
-
-    if norm_count > 1 and not replace_all:
-        return content, (
-            f"Found {norm_count} whitespace-normalised occurrences of old_string. "
-            "Make it more specific or set replace_all=true."
-        )
-
-    # Apply replacement using normalised positions
-    result = _replace_normalised(content, old, new, replace_all)
-    return result, None
-
-
-def _replace_normalised(
-    content: str,
-    old: str,
-    new: str,
-    replace_all: bool,
-) -> str:
-    """Replace *old* with *new* using whitespace-normalised matching.
-
-    We locate the positions in the normalised string, then map them back
-    to the original content to preserve the original whitespace style.
-    """
-    # Build a mapping from normalised positions to original positions
-    lines = content.split("\n")
-    norm_lines: list[str] = []
-
-    for i, line in enumerate(lines):
-        norm = " ".join(line.split())
-        norm_lines.append(norm)
-
-    norm_content = "\n".join(norm_lines)
-    norm_old = _normalise_whitespace(old)
-    norm_new = _normalise_whitespace(new)
-
     if replace_all:
-        norm_result = norm_content.replace(norm_old, norm_new)
-    else:
-        norm_result = norm_content.replace(norm_old, norm_new, 1)
-
-    # The normalised replacement may change line structure, so we
-    # reconstruct by replacing matching line groups.  This is approximate
-    # but works well enough for typical edits.
-    # Strategy: split both original and normalised-result into lines,
-    # then for each group of lines that matched norm_old, substitute
-    # the corresponding norm_new lines, keeping original indentation.
-
-    # Simple approach: if line counts match, just replace line by line
-    # preserving original indentation where possible.
-    old_line_count = old.count("\n") + 1
-    new_line_count = new.count("\n") + 1
-
-    if old_line_count == new_line_count:
-        # Line-for-line replacement preserving indentation
-        old_lines = old.split("\n")
-        new_lines = new.split("\n")
-        result = content
-        for o_line, n_line in zip(old_lines, new_lines):
-            # Find the original line and replace it
-            for i, line in enumerate(lines):
-                if _normalise_whitespace_single(line) == _normalise_whitespace_single(o_line):
-                    # Preserve original indentation
-                    indent = len(line) - len(line.lstrip())
-                    result = result.replace(line, " " * indent + n_line.lstrip(), 1)
-                    break
-        return result
-
-    # Fallback: return the normalised result
-    return norm_result
-
-
-def _normalise_whitespace_single(line: str) -> str:
-    """Normalise whitespace in a single line."""
-    return " ".join(line.split())
+        return content.replace(old, new), None
+    return content.replace(old, new, 1), None
 
 
 def _make_diff(old_content: str, new_content: str, path: str) -> str:

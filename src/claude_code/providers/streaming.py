@@ -6,7 +6,6 @@ partial content blocks, tracks token usage, and supports cancellation.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from collections.abc import AsyncIterator
 from typing import Any
@@ -16,7 +15,7 @@ from claude_code.providers.base import StreamEvent
 logger = logging.getLogger(__name__)
 
 
-class StreamCancelled(Exception):
+class StreamCancelledError(Exception):
     """Raised when a stream is cancelled via its token."""
 
 
@@ -44,9 +43,9 @@ class CancelToken:
         return self._cancelled
 
     def check(self) -> None:
-        """Raise ``StreamCancelled`` if cancellation was requested."""
+        """Raise ``StreamCancelledError`` if cancellation was requested."""
         if self._cancelled:
-            raise StreamCancelled("Stream was cancelled")
+            raise StreamCancelledError("Stream was cancelled")
 
 
 class UsageTracker:
@@ -297,7 +296,7 @@ class StreamProcessor:
                 stop_reason=self._stop_reason,
                 usage=self.usage.to_dict(),
             )
-        except StreamCancelled:
+        except StreamCancelledError:
             logger.info("Stream cancelled")
             yield StreamEvent(type="done", stop_reason="cancelled")
         except Exception as exc:

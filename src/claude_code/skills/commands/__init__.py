@@ -1,8 +1,8 @@
 """Built-in slash commands and the command base class."""
 
-from claude_code.skills.commands.base import CommandContext, SlashCommand
 from claude_code.skills.commands.add_dir import AddDirCommand
 from claude_code.skills.commands.agents import AgentsCommand
+from claude_code.skills.commands.base import CommandContext, SlashCommand
 from claude_code.skills.commands.bug import BugCommand
 from claude_code.skills.commands.clear import ClearCommand
 from claude_code.skills.commands.compact import CompactCommand

@@ -6,6 +6,7 @@ responses into the unified ``StreamEvent`` format.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from collections.abc import AsyncIterator
@@ -182,9 +183,14 @@ async def _stream_events(
     Yields:
         Normalized ``StreamEvent`` objects.
     """
-    import asyncio
-
-    for event in response_stream:
+    _end = object()
+    iterator = iter(response_stream)
+    while True:
+        # boto3's EventStream iterates synchronously (blocking network
+        # reads); pull each event in a thread so the event loop stays free.
+        event = await asyncio.to_thread(next, iterator, _end)
+        if event is _end:
+            break
         chunk = event.get("chunk")
         if chunk is None:
             continue
@@ -272,9 +278,6 @@ async def _stream_events(
 
         elif event_type == "message_stop":
             yield StreamEvent(type="message_stop", raw=data)
-
-        # Give other async tasks a chance to run
-        await asyncio.sleep(0)
 
 
 def _build_response(
@@ -435,18 +438,22 @@ class BedrockProvider(BaseProvider):
 
         try:
             if stream:
-                response = self._client.invoke_model_with_response_stream(
+                # boto3 invoke is synchronous/blocking — run it in a thread.
+                response = await asyncio.to_thread(
+                    self._client.invoke_model_with_response_stream,
                     modelId=resolved_model,
                     body=body_json,
                 )
                 response_stream = response.get("body")
                 return _stream_events(response_stream)
             else:
-                response = self._client.invoke_model(
+                response = await asyncio.to_thread(
+                    self._client.invoke_model,
                     modelId=resolved_model,
                     body=body_json,
                 )
-                response_body = json.loads(response["body"].read())
+                raw_body = await asyncio.to_thread(response["body"].read)
+                response_body = json.loads(raw_body)
                 return _build_response(response_body, resolved_model)
 
         except Exception as exc:

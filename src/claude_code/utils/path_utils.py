@@ -2,12 +2,11 @@
 
 import os
 from pathlib import Path
-from typing import Optional
 
 from claude_code.utils.git_utils import get_repo_root
 
 
-def resolve_path(path: str | Path, working_dir: Optional[str | Path] = None) -> Path:
+def resolve_path(path: str | Path, working_dir: str | Path | None = None) -> Path:
     """Resolve a path relative to a working directory.
 
     If the path is absolute, it's returned as-is. If relative, it's resolved
@@ -30,7 +29,7 @@ def resolve_path(path: str | Path, working_dir: Optional[str | Path] = None) -> 
 
 def is_path_allowed(
     path: str | Path,
-    allowed_dirs: Optional[list[str | Path]] = None,
+    allowed_dirs: list[str | Path] | None = None,
 ) -> bool:
     """Check whether a path falls within one of the allowed directories.
 
@@ -57,7 +56,7 @@ def is_path_allowed(
     return False
 
 
-def get_project_root(working_dir: Optional[str | Path] = None) -> Path:
+def get_project_root(working_dir: str | Path | None = None) -> Path:
     """Find the project root directory.
 
     Tries (in order):
@@ -82,9 +81,9 @@ def get_project_root(working_dir: Optional[str | Path] = None) -> Path:
 
 def find_upward(
     filename: str,
-    start_dir: Optional[str | Path] = None,
-    stop_at: Optional[str | Path] = None,
-) -> Optional[Path]:
+    start_dir: str | Path | None = None,
+    stop_at: str | Path | None = None,
+) -> Path | None:
     """Search for a file by walking upward from start_dir.
 
     Args:

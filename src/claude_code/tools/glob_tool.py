@@ -26,6 +26,7 @@ class GlobTool(Tool):
         "matching. Returns paths sorted by modification time (newest first)."
     )
     category = "file"
+    read_only = True
     input_schema: dict[str, Any] = {
         "type": "object",
         "properties": {

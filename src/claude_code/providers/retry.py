@@ -73,10 +73,14 @@ def _compute_delay(
         Delay in seconds before the next attempt.
     """
     if retry_after is not None and retry_after > 0:
-        delay = retry_after
-    else:
-        delay = config.base_delay * (config.exponential_base ** attempt)
+        # Honour the server's Retry-After as a floor — only add a small
+        # positive jitter, never full jitter that could retry too early.
+        delay = min(retry_after, config.max_delay)
+        if config.jitter:
+            delay += random.uniform(0, 1.0)  # noqa: S311
+        return delay
 
+    delay = config.base_delay * (config.exponential_base ** attempt)
     delay = min(delay, config.max_delay)
 
     if config.jitter:

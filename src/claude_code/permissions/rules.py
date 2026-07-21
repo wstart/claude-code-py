@@ -19,10 +19,10 @@ from __future__ import annotations
 
 import fnmatch
 import re
-from enum import Enum
-from typing import Any, Optional
+from enum import StrEnum
+from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from claude_code.utils.logging import get_logger
 
@@ -59,7 +59,7 @@ _RULE_RE = re.compile(
 # Models
 # ---------------------------------------------------------------------------
 
-class RuleAction(str, Enum):
+class RuleAction(StrEnum):
     """Outcome of a matched rule."""
 
     ALLOW = "allow"
@@ -82,8 +82,8 @@ class PermissionRule(BaseModel):
     tool_pattern: str
     action: RuleAction
     tool_name_glob: str = "*"
-    param_hint: Optional[str] = None
-    params_pattern: Optional[dict[str, str]] = None
+    param_hint: str | None = None
+    params_pattern: dict[str, str] | None = None
 
     @classmethod
     def parse(cls, raw: str, action: RuleAction) -> PermissionRule:
@@ -212,14 +212,21 @@ class RuleEngine:
         """
         params = params or {}
 
+        # Deny takes precedence over allow, regardless of rule order —
+        # a broad allow (e.g. "Bash") must not shadow a specific deny
+        # ("Bash(rm -rf *)").
+        matched_allow = False
         for rule in self._rules:
             if not _tool_matches(rule, tool_name):
                 continue
             if not _params_match(rule, tool_name, params):
                 continue
-            # First match wins.
-            return rule.action.value
+            if rule.action is RuleAction.DENY:
+                return RuleAction.DENY.value
+            matched_allow = True
 
+        if matched_allow:
+            return RuleAction.ALLOW.value
         return "ask"
 
     # -- helpers -----------------------------------------------------------

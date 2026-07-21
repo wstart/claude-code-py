@@ -126,7 +126,7 @@ class StdioTransport(Transport):
                 ),
                 timeout=_CONNECT_TIMEOUT,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise TransportError(
                 f"Timed out spawning process '{self._command}' "
                 f"after {_CONNECT_TIMEOUT}s"
@@ -168,20 +168,23 @@ class StdioTransport(Transport):
         assert self._proc.stdout is not None
 
         async with self._read_lock:
-            try:
-                raw = await self._proc.stdout.readline()
-            except (ConnectionResetError, ValueError) as exc:
-                self._connected = False
-                raise TransportError(f"Read error: {exc}")
+            # Skip blank lines within the same lock acquisition — recursing
+            # into receive() here would deadlock on the non-reentrant lock.
+            while True:
+                try:
+                    raw = await self._proc.stdout.readline()
+                except (ConnectionResetError, ValueError) as exc:
+                    self._connected = False
+                    raise TransportError(f"Read error: {exc}")
 
-            if not raw:
-                self._connected = False
-                raise TransportError("Process stdout closed (server exited)")
+                if not raw:
+                    self._connected = False
+                    raise TransportError("Process stdout closed (server exited)")
 
-            text = raw.decode("utf-8", errors="replace").strip()
-            if not text:
-                # Blank line — try again (some servers emit blank lines)
-                return await self.receive()
+                text = raw.decode("utf-8", errors="replace").strip()
+                if text:
+                    break
+                # Blank line — some servers emit them; read the next line.
 
             try:
                 return json.loads(text)
@@ -207,7 +210,7 @@ class StdioTransport(Transport):
         # Give it a moment to exit gracefully
         try:
             await asyncio.wait_for(self._proc.wait(), timeout=_CLOSE_TIMEOUT)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(
                 "Process pid=%s did not exit in %ss, terminating",
                 self._proc.pid, _CLOSE_TIMEOUT,
@@ -215,7 +218,7 @@ class StdioTransport(Transport):
             try:
                 self._proc.terminate()
                 await asyncio.wait_for(self._proc.wait(), timeout=5.0)
-            except (asyncio.TimeoutError, ProcessLookupError):
+            except (TimeoutError, ProcessLookupError):
                 try:
                     self._proc.kill()
                 except ProcessLookupError:
@@ -305,7 +308,7 @@ class SSETransport(Transport):
                 timeout=_CONNECT_TIMEOUT,
             )
             self._sse_response.raise_for_status()
-        except asyncio.TimeoutError:
+        except TimeoutError:
             await self._cleanup_session()
             raise TransportError(
                 f"Timed out connecting to SSE endpoint after {_CONNECT_TIMEOUT}s"
@@ -352,7 +355,7 @@ class SSETransport(Transport):
                 self._message_queue.get(),
                 timeout=_RECEIVE_TIMEOUT,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise TransportError(
                 f"No message received within {_RECEIVE_TIMEOUT}s"
             )

@@ -7,10 +7,9 @@ call, with options to always-allow or deny-all for the session.
 from __future__ import annotations
 
 import asyncio
-import sys
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Optional
+from enum import StrEnum
+from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
@@ -36,7 +35,7 @@ _RISK_LABELS: dict[ToolRisk, str] = {
 }
 
 
-class PromptChoice(str, Enum):
+class PromptChoice(StrEnum):
     """User's response to a permission prompt."""
 
     YES = "yes"               # Allow this one call
@@ -57,7 +56,7 @@ class PromptResult:
     """
 
     choice: PromptChoice
-    add_rule: Optional[str] = None
+    add_rule: str | None = None
 
 
 @dataclass
@@ -121,7 +120,7 @@ class PermissionPrompt:
         choice = await self._read_choice()
 
         # Build optional session rule.
-        add_rule: Optional[str] = None
+        add_rule: str | None = None
         if choice == PromptChoice.ALWAYS_ALLOW:
             rule_str = self._build_rule_string(tool_name, params)
             self._always_allow.append(rule_str)

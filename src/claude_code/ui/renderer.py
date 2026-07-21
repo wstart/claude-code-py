@@ -6,9 +6,8 @@ and streaming text with proper syntax highlighting and formatting.
 
 import difflib
 from io import StringIO
-from typing import Optional
 
-from rich.console import Console, Group
+from rich.console import Console
 from rich.live import Live
 from rich.markdown import Markdown
 from rich.panel import Panel
@@ -32,8 +31,8 @@ class RichRenderer:
 
     def __init__(
         self,
-        console: Optional[Console] = None,
-        theme: Optional[ThemeConfig] = None,
+        console: Console | None = None,
+        theme: ThemeConfig | None = None,
     ) -> None:
         """Initialize the renderer.
 
@@ -44,7 +43,7 @@ class RichRenderer:
         self.theme = theme or get_theme("dark")
         self.console = console or Console(theme=self.theme.rich_theme)
         self._stream_buffer = StringIO()
-        self._stream_live: Optional[Live] = None
+        self._stream_live: Live | None = None
 
     def render_markdown(self, text: str) -> None:
         """Render markdown text with syntax highlighting.
@@ -83,7 +82,7 @@ class RichRenderer:
             name: Tool name.
             params: Tool parameters dictionary.
         """
-        color = self.theme.get_tool_style(name)
+        color = self.theme.get_tool_color(name)
 
         # Build parameter summary
         param_lines: list[str] = []
@@ -120,7 +119,7 @@ class RichRenderer:
             result: Result text from the tool.
             is_error: Whether the result is an error.
         """
-        color = self.theme.scheme.error if is_error else self.theme.get_tool_style(name)
+        color = self.theme.scheme.error if is_error else self.theme.get_tool_color(name)
         icon = "✗" if is_error else "✓"
         title_style = f"bold {color}"
 
@@ -229,7 +228,7 @@ class RichRenderer:
         self,
         headers: list[str],
         rows: list[list[str]],
-        title: Optional[str] = None,
+        title: str | None = None,
     ) -> None:
         """Render tabular data.
 
@@ -242,7 +241,7 @@ class RichRenderer:
             title=title,
             border_style=self.theme.scheme.border,
             show_header=True,
-            header_style=f"bold {self.theme.scheme.primary}",
+            header_style=f"bold {self.theme.scheme.text_primary}",
         )
 
         for header in headers:
@@ -301,8 +300,8 @@ class RichRenderer:
             text: User's input text.
         """
         content = Text()
-        content.append("> ", style=f"bold {self.theme.scheme.primary}")
-        content.append(text, style=self.theme.scheme.user_message)
+        content.append("> ", style=f"bold {self.theme.scheme.user_cyan}")
+        content.append(text, style=self.theme.scheme.text_secondary)
         self.console.print(content)
 
     def render_assistant_label(self) -> Text:
@@ -312,7 +311,7 @@ class RichRenderer:
             Text object with the assistant label.
         """
         label = Text()
-        label.append("Claude", style=f"bold {self.theme.scheme.accent}")
+        label.append("Claude", style=f"bold {self.theme.scheme.aka_red}")
         label.append(" │ ", style="dim")
         return label
 

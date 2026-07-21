@@ -31,6 +31,7 @@ class WebSearchTool(Tool):
         "Supports domain allow/block filtering. US-only results."
     )
     category = "web"
+    read_only = True
     input_schema: dict[str, Any] = {
         "type": "object",
         "properties": {

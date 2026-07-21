@@ -6,6 +6,7 @@ GCP and normalizes streaming responses into ``StreamEvent`` format.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -39,25 +40,15 @@ VERTEX_MODEL_ALIASES: dict[str, str] = {
 }
 
 
-def _get_access_token() -> str:
-    """Obtain a GCP access token for Vertex AI API calls.
+def _load_credentials() -> Any:
+    """Load refreshable Application Default Credentials via ``google.auth``.
 
-    Tries the following sources in order:
-    1. ``GOOGLE_OAUTH_ACCESS_TOKEN`` environment variable
-    2. Application Default Credentials via ``google.auth``
-
-    Returns:
-        A valid GCP access token string.
+    Returns the credentials object (not a bare token) so the caller can
+    refresh it when the access token expires (~1h).
 
     Raises:
-        AuthenticationError: If no credentials are available.
+        AuthenticationError: If google-auth is unavailable or ADC fails.
     """
-    # Check for explicit token
-    token = os.environ.get("GOOGLE_OAUTH_ACCESS_TOKEN")
-    if token:
-        return token
-
-    # Try Application Default Credentials
     try:
         import google.auth  # type: ignore[import-untyped]
         import google.auth.transport.requests  # type: ignore[import-untyped]
@@ -66,7 +57,7 @@ def _get_access_token() -> str:
             scopes=["https://www.googleapis.com/auth/cloud-platform"],
         )
         credentials.refresh(google.auth.transport.requests.Request())
-        return credentials.token  # type: ignore[return-value]
+        return credentials
     except ImportError:
         raise AuthenticationError(
             "GCP credentials not found. Install google-auth: "
@@ -77,6 +68,13 @@ def _get_access_token() -> str:
         raise AuthenticationError(
             f"Failed to obtain GCP credentials: {exc}"
         ) from exc
+
+
+def _refresh_credentials(credentials: Any) -> None:
+    """Refresh an expired GCP credentials object in place."""
+    import google.auth.transport.requests  # type: ignore[import-untyped]
+
+    credentials.refresh(google.auth.transport.requests.Request())
 
 
 def _get_project_id() -> str:
@@ -218,7 +216,9 @@ async def _stream_events(
     Yields:
         Normalized ``StreamEvent`` objects.
     """
-    async with response as r:
+    # httpx.Response is not an async context manager — close explicitly.
+    r = response
+    try:
         if r.status_code != 200:
             body = await r.aread()
             raise _map_http_error(r.status_code, body.decode(errors="replace"))
@@ -315,6 +315,8 @@ async def _stream_events(
 
             elif event_type == "message_stop":
                 yield StreamEvent(type="message_stop", raw=data)
+    finally:
+        await r.aclose()
 
 
 def _build_response(
@@ -387,7 +389,10 @@ class VertexProvider(BaseProvider):
         self._project_id = project_id
         self._region = region
         self._default_model = default_model
-        self._access_token = access_token
+        # An explicit token (env/arg) is used as-is; otherwise we hold a
+        # refreshable ADC credentials object.
+        self._env_token = access_token or os.environ.get("GOOGLE_OAUTH_ACCESS_TOKEN")
+        self._credentials: Any = None
         self._timeout = timeout
         self._http_client: httpx.AsyncClient | None = None
 
@@ -402,12 +407,19 @@ class VertexProvider(BaseProvider):
         self._project_id = _get_project_id()
         return self._project_id
 
-    def _get_token(self) -> str:
-        """Return a valid access token, refreshing if necessary."""
-        if self._access_token:
-            return self._access_token
-        self._access_token = _get_access_token()
-        return self._access_token
+    async def _ensure_token(self) -> str:
+        """Return a valid access token, refreshing ADC when it expires.
+
+        A GCP access token lives ~1h; caching it forever caused persistent
+        401s on long sessions. Blocking google-auth calls run in a thread.
+        """
+        if self._env_token:
+            return self._env_token
+        if self._credentials is None:
+            self._credentials = await asyncio.to_thread(_load_credentials)
+        elif not getattr(self._credentials, "valid", False):
+            await asyncio.to_thread(_refresh_credentials, self._credentials)
+        return str(self._credentials.token)
 
     def _build_url(self, model: str, stream: bool) -> str:
         """Build the Vertex AI endpoint URL.
@@ -493,7 +505,7 @@ class VertexProvider(BaseProvider):
             messages, system, tools, max_tokens, stream, **kwargs
         )
         url = self._build_url(resolved_model, stream)
-        token = self._get_token()
+        token = await self._ensure_token()
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",

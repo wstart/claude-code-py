@@ -17,7 +17,7 @@ from __future__ import annotations
 import datetime
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING
 
 from claude_code.utils.git_utils import (
     get_current_branch,
@@ -156,7 +156,7 @@ class SystemPromptBuilder:
     def __init__(
         self,
         config: AppConfig,
-        tool_registry: Optional[ToolRegistry] = None,
+        tool_registry: ToolRegistry | None = None,
     ) -> None:
         self.config = config
         self.tool_registry = tool_registry

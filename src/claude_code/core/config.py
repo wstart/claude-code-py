@@ -5,12 +5,12 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
 from claude_code.utils.logging import get_logger
-from claude_code.utils.path_utils import expand_user, find_upward, get_project_root
+from claude_code.utils.path_utils import expand_user, get_project_root
 
 logger = get_logger("core.config")
 
@@ -65,8 +65,8 @@ class AppConfig(BaseModel):
 
 
 def load_config(
-    working_dir: Optional[str] = None,
-    overrides: Optional[dict[str, Any]] = None,
+    working_dir: str | None = None,
+    overrides: dict[str, Any] | None = None,
 ) -> AppConfig:
     """Load configuration by merging all sources in priority order.
 

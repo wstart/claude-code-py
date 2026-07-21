@@ -17,6 +17,12 @@ Quick-start::
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from claude_code.tools.base import ToolContext
+    from claude_code.tools.registry import ToolRegistry
+
 __all__ = [
     "Tool",
     "ToolContext",
@@ -67,6 +73,7 @@ def create_default_registry(context: ToolContext | None = None) -> ToolRegistry:
     from claude_code.tools.notebook_edit import NotebookEditTool
     from claude_code.tools.notebook_read import NotebookReadTool
     from claude_code.tools.read import ReadTool
+    from claude_code.tools.registry import ToolRegistry
     from claude_code.tools.task import TaskTool
     from claude_code.tools.todo_read import TodoReadTool
     from claude_code.tools.todo_write import TodoWriteTool

@@ -32,6 +32,9 @@ class ReviewCommand(SlashCommand):
         # If there's a query engine, submit the review as a query
         if context.query_engine:
             context.metadata["pending_review"] = review_prompt
-            return f"Code review triggered for: {scope}\nThe review will be processed in the next turn."
+            return (
+                f"Code review triggered for: {scope}\n"
+                "The review will be processed in the next turn."
+            )
 
         return "No active query engine to process the review."

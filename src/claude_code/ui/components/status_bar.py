@@ -6,7 +6,6 @@ directory in a compact bar that updates in real-time.
 
 import os
 from dataclasses import dataclass
-from typing import Optional
 
 from rich.console import Console
 from rich.text import Text
@@ -57,7 +56,7 @@ class StatusBar:
     def __init__(
         self,
         console: Console,
-        theme: Optional[ThemeConfig] = None,
+        theme: ThemeConfig | None = None,
     ) -> None:
         """Initialize the status bar.
 
@@ -71,11 +70,11 @@ class StatusBar:
 
     def update(
         self,
-        model: Optional[str] = None,
-        session_id: Optional[str] = None,
-        tokens_used: Optional[int] = None,
-        cost_usd: Optional[float] = None,
-        working_directory: Optional[str] = None,
+        model: str | None = None,
+        session_id: str | None = None,
+        tokens_used: int | None = None,
+        cost_usd: float | None = None,
+        working_directory: str | None = None,
     ) -> None:
         """Update status bar fields.
 
@@ -110,12 +109,12 @@ class StatusBar:
 
         # Model name
         if self.info.model:
-            bar.append(f" {self.info.model}", style=f"bold {scheme.primary}")
+            bar.append(f" {self.info.model}", style=f"bold {scheme.aka_red}")
             bar.append(" │", style="dim")
 
         # Session ID
         if self.info.session_id:
-            bar.append(f" {self.info.short_session_id}", style=scheme.secondary)
+            bar.append(f" {self.info.short_session_id}", style=scheme.text_secondary)
             bar.append(" │", style="dim")
 
         # Token count
