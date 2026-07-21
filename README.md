@@ -4,6 +4,22 @@ Python 实现的 [Claude Code](https://github.com/anthropics/claude-code) — �
 
 > **状态：Alpha。** 核心对话循环、工具、多后端、权限、会话等子系统均已实现并有测试覆盖，但仍在积极开发中，接口可能变动。
 
+## 快速安装
+
+一句话安装（二选一）：
+
+```bash
+# 方式 A：pip 直接从 GitHub 安装，装好 `claude` 命令（跨平台，推荐）
+pip install "git+https://github.com/wstart/claude-code-py.git"
+
+# 方式 B：一键脚本，装成自定义命令名并交互式配置 .env（默认命令名 aka）
+curl -fsSL https://raw.githubusercontent.com/wstart/claude-code-py/main/scripts/install.sh | bash
+# 指定命令名：
+curl -fsSL https://raw.githubusercontent.com/wstart/claude-code-py/main/scripts/install.sh | bash -s -- mytool
+```
+
+方式 A 装完后用环境变量配置 key 再运行 `claude`；方式 B 会把仓库装到 `~/.aka` 并交互式写好 `~/.aka/.env`，之后直接用你指定的命令名启动。详细配置见下方 [配置](#配置)。
+
 ## 功能
 
 - 🤖 **Agentic 对话循环** — 流式输出、自动调用工具、处理结果、多轮持续对话，含 Token 预算与最大轮次限制

@@ -23,6 +23,12 @@ if ! command -v python3 &>/dev/null; then
     exit 1
 fi
 
+# 检查 git（克隆/更新需要）
+if ! command -v git &>/dev/null; then
+    echo "✗ git not found. Install git first."
+    exit 1
+fi
+
 PY_VER=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 echo "✓ Python $PY_VER"
 
@@ -76,11 +82,12 @@ fi
 echo ""
 if [ -f "$INSTALL_DIR/.env" ]; then
     echo "✓ .env already configured"
-else
+elif [ -e /dev/tty ]; then
+    # 从 /dev/tty 读，即使脚本是通过 `curl ... | bash` 管道执行也能交互
     echo "→ Configure API:"
-    read -rp "  API Key: " API_KEY
-    read -rp "  Base URL [https://token-plan.cn-beijing.maas.aliyuncs.com/apps/anthropic]: " BASE_URL
-    read -rp "  Model [qwen3.7-max]: " MODEL
+    read -rp "  API Key: " API_KEY < /dev/tty
+    read -rp "  Base URL [https://token-plan.cn-beijing.maas.aliyuncs.com/apps/anthropic]: " BASE_URL < /dev/tty
+    read -rp "  Model [qwen3.7-max]: " MODEL < /dev/tty
     BASE_URL="${BASE_URL:-https://token-plan.cn-beijing.maas.aliyuncs.com/apps/anthropic}"
     MODEL="${MODEL:-qwen3.7-max}"
     cat > "$INSTALL_DIR/.env" << EOF
@@ -94,6 +101,11 @@ CLAUDE_CODE_SUBAGENT_MODEL=$MODEL
 EOF
     chmod 600 "$INSTALL_DIR/.env"
     echo "✓ .env saved"
+else
+    echo "→ 无交互终端，跳过 API 配置"
+    echo "  请手动创建 $INSTALL_DIR/.env："
+    echo "    ANTHROPIC_AUTH_TOKEN=<你的密钥>"
+    echo "    ANTHROPIC_BASE_URL=<你的端点>"
 fi
 
 echo ""
