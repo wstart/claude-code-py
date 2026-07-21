@@ -59,6 +59,7 @@ dev = [
 
 [project.scripts]
 claude = "claude_code.cli:main"
+aka = "claude_code.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/anthropics/claude-code"

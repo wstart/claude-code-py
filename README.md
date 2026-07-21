@@ -18,7 +18,9 @@ curl -fsSL https://raw.githubusercontent.com/wstart/claude-code-py/main/scripts/
 curl -fsSL https://raw.githubusercontent.com/wstart/claude-code-py/main/scripts/install.sh | bash -s -- mytool
 ```
 
-方式 A 装完后用环境变量配置 key 再运行 `claude`；方式 B 会把仓库装到 `~/.aka` 并交互式写好 `~/.aka/.env`，之后直接用你指定的命令名启动。详细配置见下方 [配置](#配置)。
+方式 A 装完后会有 **`claude`** 和 **`aka`** 两个命令（同一入口，任选其一），用环境变量配置 key 后即可运行；方式 B 会把仓库装到 `~/.aka` 并交互式写好 `~/.aka/.env`，之后直接用你指定的命令名启动。详细配置见下方 [配置](#配置)。
+
+> 注意：`pip` 装出的命令是 `claude` / `aka`（标准 console script，需自己配环境变量）；`aka` 这个名字**不是** `install.sh` 独有的——两种方式都能得到它。
 
 ## 功能
 
