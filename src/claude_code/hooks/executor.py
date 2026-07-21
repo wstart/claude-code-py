@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import os
+import signal
 from typing import Any
 
 from .events import HookDecision, HookPayload, HookResult
@@ -68,6 +69,7 @@ class HookExecutor:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=self.working_directory,
+                start_new_session=True,
             )
         except Exception as exc:
             logger.warning("Hook %r failed to start: %s", command, exc)
@@ -79,6 +81,11 @@ class HookExecutor:
                 timeout=timeout,
             )
         except TimeoutError:
+            # Kill the whole process group so children of the shell die too.
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            except (ProcessLookupError, OSError, AttributeError):
+                pass
             proc.kill()
             await proc.wait()
             logger.warning("Hook %r timed out after %.1fs", command, timeout)

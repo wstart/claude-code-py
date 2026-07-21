@@ -8,12 +8,29 @@ from __future__ import annotations
 
 import asyncio
 import os
+import signal
 import tempfile
 from pathlib import Path
 from typing import Any
 
 from claude_code.tools.base import Tool, ToolContext, ToolResult
 from claude_code.utils.logging import get_logger
+
+
+async def _terminate_process_group(proc: asyncio.subprocess.Process) -> None:
+    """Kill a subprocess and its group, then reap it (no orphans/zombies)."""
+    try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+    except (ProcessLookupError, OSError, AttributeError):
+        pass
+    try:
+        proc.kill()
+    except ProcessLookupError:
+        pass
+    try:
+        await proc.wait()
+    except ProcessLookupError:
+        pass
 
 logger = get_logger("tools.execute_code")
 
@@ -141,6 +158,7 @@ class ExecuteCodeTool(Tool):
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd,
+                    start_new_session=True,
                 )
                 try:
                     stdout, stderr = await asyncio.wait_for(
@@ -148,7 +166,7 @@ class ExecuteCodeTool(Tool):
                         timeout=timeout,
                     )
                 except TimeoutError:
-                    proc.kill()
+                    await _terminate_process_group(proc)
                     return ToolResult.error(
                         f"Execution timed out after {timeout}s"
                     )
@@ -162,6 +180,7 @@ class ExecuteCodeTool(Tool):
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd,
+                    start_new_session=True,
                 )
                 try:
                     stdout, stderr = await asyncio.wait_for(
@@ -169,7 +188,7 @@ class ExecuteCodeTool(Tool):
                         timeout=timeout,
                     )
                 except TimeoutError:
-                    proc.kill()
+                    await _terminate_process_group(proc)
                     return ToolResult.error(
                         f"Execution timed out after {timeout}s"
                     )

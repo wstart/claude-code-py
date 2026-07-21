@@ -190,16 +190,30 @@ class GrepTool(Tool):
 # Helpers
 # ---------------------------------------------------------------------------
 
+# Directories the pure-Python fallback skips (ripgrep skips these via
+# .gitignore by default; the fallback has no gitignore parser).
+_IGNORED_DIRS = frozenset({
+    ".git", ".hg", ".svn", "node_modules", ".venv", "venv", "__pycache__",
+    ".mypy_cache", ".pytest_cache", ".ruff_cache", ".tox", ".idea", ".vscode",
+    "dist", "build", ".next", ".cache", "target",
+})
+
+
 def _collect_files(root: Path, include: str | None) -> list[Path]:
     """Walk *root* and return files matching the optional *include* glob."""
     results: list[Path] = []
+    root = Path(root)
 
-    for dirpath, _dirnames, filenames in os.walk(root):
+    for dirpath, dirnames, filenames in os.walk(root):
+        # Prune ignored directories in place so os.walk doesn't descend.
+        dirnames[:] = [d for d in dirnames if d not in _IGNORED_DIRS]
         dp = Path(dirpath)
         for fname in filenames:
             fp = dp / fname
-            if include and not _matches_glob(fname, include):
-                continue
+            if include:
+                rel = fp.relative_to(root).as_posix()
+                if not (_matches_glob(fname, include) or _matches_glob(rel, include)):
+                    continue
             # Skip binary-looking files
             if fp.suffix.lower() in _BINARY_EXTENSIONS:
                 continue
@@ -218,11 +232,13 @@ _BINARY_EXTENSIONS = frozenset({
 })
 
 
-def _matches_glob(filename: str, pattern: str) -> bool:
-    """Check if *filename* matches a simple glob pattern."""
-    # Convert glob to regex
-    regex = pattern.replace(".", r"\.").replace("*", ".*").replace("?", ".")
-    return bool(re.fullmatch(regex, filename))
+def _matches_glob(name: str, pattern: str) -> bool:
+    """Check if *name* matches a glob *pattern* (supports ``**`` and paths)."""
+    from fnmatch import fnmatch
+
+    # `**` should cross path separators; fnmatch treats `*` greedily over
+    # `/` already, so normalise `**` down to `*` for this simple matcher.
+    return fnmatch(name, pattern.replace("**", "*"))
 
 
 def _sort_by_mtime(lines: list[str], base_path: Path) -> str:

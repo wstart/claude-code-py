@@ -401,6 +401,13 @@ class QueryEngine:
                 if event.tool_id in tool_buffers and self.callbacks.on_spinner_hide:
                     self.callbacks.on_spinner_hide()
 
+            elif event.type == "message_start":
+                # Anthropic/Bedrock/Vertex report input_tokens here; without
+                # this branch the whole prompt cost was dropped. Later
+                # message_delta events overwrite the running output_tokens.
+                if event.usage:
+                    usage.update(event.usage)
+
             elif event.type == "message_delta":
                 if event.stop_reason:
                     stop_reason = event.stop_reason
