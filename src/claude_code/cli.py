@@ -177,7 +177,7 @@ class _ClaudeGroup(click.Group):
     default=None,
     help="Reasoning effort level.",
 )
-@click.version_option(version=__version__, prog_name="claude")
+@click.version_option(version=__version__, prog_name="aka")
 def main(
     print_mode: bool,
     continue_session: bool,

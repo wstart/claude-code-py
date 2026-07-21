@@ -9,7 +9,7 @@ Python 实现的 [Claude Code](https://github.com/anthropics/claude-code) — �
 一句话安装（二选一）：
 
 ```bash
-# 方式 A：pip 直接从 GitHub 安装，装好 `claude` 命令（跨平台，推荐）
+# 方式 A：pip 直接从 GitHub 安装，装好 `aka` 命令（跨平台，推荐）
 pip install "git+https://github.com/wstart/claude-code-py.git"
 
 # 方式 B：一键脚本，装成自定义命令名并交互式配置 .env（默认命令名 aka）
@@ -18,9 +18,7 @@ curl -fsSL https://raw.githubusercontent.com/wstart/claude-code-py/main/scripts/
 curl -fsSL https://raw.githubusercontent.com/wstart/claude-code-py/main/scripts/install.sh | bash -s -- mytool
 ```
 
-方式 A 装完后会有 **`claude`** 和 **`aka`** 两个命令（同一入口，任选其一），用环境变量配置 key 后即可运行；方式 B 会把仓库装到 `~/.aka` 并交互式写好 `~/.aka/.env`，之后直接用你指定的命令名启动。详细配置见下方 [配置](#配置)。
-
-> 注意：`pip` 装出的命令是 `claude` / `aka`（标准 console script，需自己配环境变量）；`aka` 这个名字**不是** `install.sh` 独有的——两种方式都能得到它。
+方式 A 装完后命令是 **`aka`**，用环境变量配置 key 后即可运行；方式 B 会把仓库装到 `~/.aka` 并交互式写好 `~/.aka/.env`，之后直接用你指定的命令名启动。详细配置见下方 [配置](#配置)。
 
 ## 功能
 
@@ -81,26 +79,26 @@ export CLAUDE_SKIP_SSL_VERIFY=1   # 跳过 TLS 证书验证，仅用于可信的
 
 ```bash
 # 交互式模式
-claude
+aka
 
 # 带初始提问
-claude "解释这个项目的架构"
+aka "解释这个项目的架构"
 
 # 非交互模式（print）
-claude -p "写一个 Python hello world"
+aka -p "写一个 Python hello world"
 
 # 指定模型（支持别名，见 --model）
-claude --model claude-sonnet-4-6 "优化这段代码"
+aka --model claude-sonnet-4-6 "优化这段代码"
 
 # 恢复上次会话 / 指定会话
-claude -c
-claude -r <session-id>
+aka -c
+aka -r <session-id>
 
 # JSON / 流式 JSON 输出
-claude -p --output-format json "列出所有 TODO"
+aka -p --output-format json "列出所有 TODO"
 
 # 权限模式：manual（默认）| auto | plan | bypass
-claude --permission-mode auto "重构这个模块"
+aka --permission-mode auto "重构这个模块"
 ```
 
 ## 斜杠命令
