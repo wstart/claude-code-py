@@ -91,6 +91,16 @@ class ClaudeApp:
         ctx = ToolContext(cwd=self.config.working_directory)
         self.tool_registry = create_tool_registry(ctx)
 
+        # The Task tool spawns a sub-agent QueryEngine, so it needs the
+        # provider and config injected — otherwise it errors at call time.
+        try:
+            task_tool = self.tool_registry.get("Task")
+        except Exception:
+            task_tool = None
+        if task_tool is not None and hasattr(task_tool, "set_provider"):
+            task_tool.set_provider(self._lazy_provider())
+            task_tool.set_config(self.config)
+
         # Permissions + Hooks (lazy imports)
         from claude_code.hooks.manager import HookManager
         from claude_code.permissions.manager import PermissionManager

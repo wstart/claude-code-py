@@ -33,13 +33,19 @@ class Spinner:
         self._action = action
         self._start_time = time.monotonic()
         self._frame = 0
+        # Pass `self` (not a one-off Text) so Live re-renders via __rich__
+        # on every refresh — otherwise the frame and elapsed time freeze.
         self._live = Live(
-            self._build_display(),
+            self,
             console=self.console,
             refresh_per_second=12,
             transient=True,
         )
         self._live.start()
+
+    def __rich__(self) -> Text:
+        """Called by Live on every refresh — advances frame and elapsed time."""
+        return self._build_display()
 
     def stop(self) -> None:
         if self._live is not None:
