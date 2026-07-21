@@ -9,13 +9,15 @@ from pydantic import BaseModel, Field
 
 
 class HookEvent(StrEnum):
-    """Events that hooks can subscribe to."""
+    """Events that hooks can subscribe to (mirrors Claude Code's set)."""
 
     PRE_TOOL_USE = "PreToolUse"
     POST_TOOL_USE = "PostToolUse"
     NOTIFICATION = "Notification"
-    STOP = "Stop"
     USER_PROMPT_SUBMIT = "UserPromptSubmit"
+    STOP = "Stop"
+    SUBAGENT_STOP = "SubagentStop"
+    PRE_COMPACT = "PreCompact"
     SESSION_START = "SessionStart"
     SESSION_END = "SessionEnd"
 

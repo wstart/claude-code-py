@@ -155,7 +155,10 @@ class HookManager:
             try:
                 event = HookEvent(event_name)
             except ValueError:
-                logger.warning("Unknown hook event %r in config, skipping", event_name)
+                # Unknown event names (typos, or events from a newer Claude
+                # Code) are skipped quietly — a warning per entry at startup
+                # is just noise.
+                logger.debug("Skipping unrecognised hook event %r in config", event_name)
                 continue
             for entry in entries:
                 self.register(
