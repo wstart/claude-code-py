@@ -233,7 +233,13 @@ async def _run_app(
     ok, detail = await app.check_connection()
     if not ok:
         click.echo(f"\n  ✗ {detail}\n", err=True)
-        click.echo("  编辑 ~/.aka/.env 修复配置，然后重试。\n", err=True)
+        click.echo(
+            "  配置 API（任选其一）后重试：\n"
+            "    • 设置环境变量 ANTHROPIC_API_KEY 与 ANTHROPIC_BASE_URL\n"
+            "    • 或在当前目录创建 .env 写入以上变量（用 python main.py 启动会自动读取）\n"
+            "    • 用 install.sh 安装的则编辑 ~/.aka/.env\n",
+            err=True,
+        )
         sys.exit(1)
     if not print_mode:
         click.echo(f"  ✓ {detail}", err=True)
