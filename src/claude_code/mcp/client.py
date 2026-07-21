@@ -21,10 +21,12 @@ _DEFAULT_TIMEOUT = 60.0
 _PROTOCOL_VERSION = "2024-11-05"
 
 # Client info sent during initialization
-_CLIENT_INFO = {
-    "name": "claude-code-py",
-    "version": "0.1.0",
-}
+def _client_info() -> dict[str, str]:
+    from claude_code import __version__
+    return {"name": "aka", "version": __version__}
+
+
+_CLIENT_INFO = _client_info()
 
 
 class MCPError(Exception):

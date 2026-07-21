@@ -261,12 +261,14 @@ class AppUI:
 
     def _print_welcome(self) -> None:
         """Print the welcome banner — cyberpunk style."""
+        from claude_code import __version__
+
         s = self.theme.scheme
         self.console.print()
         self.console.print(
             f"  [{s.aka_red}]▄▄▄▄▄[/{s.aka_red}]  "
             f"[bold {s.aka_red}]AKA[/bold {s.aka_red}]  "
-            f"[{s.text_dim}]v0.1.0[/{s.text_dim}]"
+            f"[{s.text_dim}]v{__version__}[/{s.text_dim}]"
         )
         self.console.print(
             f"  [{s.aka_red}]█▀▀▀█[/{s.aka_red}]  "
