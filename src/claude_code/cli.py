@@ -201,6 +201,41 @@ def main(
     pass
 
 
+def _interactive_setup() -> None:
+    """Prompt for API config on first run and save it to ~/.claude/.env.
+
+    Written to os.environ immediately so the current run picks it up. Only
+    called on an interactive terminal (see caller).
+    """
+    import os
+    from pathlib import Path
+
+    click.echo("\n  未检测到 API 配置，来配置一下（回车用默认值）：", err=True)
+    api_key = click.prompt("  API Key / Token", type=str)
+    base_url = click.prompt("  Base URL", default="https://api.anthropic.com")
+    model = click.prompt("  Model", default="claude-sonnet-4-6")
+
+    env_dir = Path.home() / ".claude"
+    env_dir.mkdir(parents=True, exist_ok=True)
+    env_path = env_dir / ".env"
+    body = (
+        f"ANTHROPIC_AUTH_TOKEN={api_key}\n"
+        f"ANTHROPIC_BASE_URL={base_url}\n"
+        f"ANTHROPIC_MODEL={model}\n"
+    )
+    # Create 0600 so the token isn't world-readable.
+    fd = os.open(str(env_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(body)
+
+    # Take effect for this run.
+    os.environ["ANTHROPIC_AUTH_TOKEN"] = api_key
+    os.environ["ANTHROPIC_BASE_URL"] = base_url
+    os.environ["ANTHROPIC_MODEL"] = model
+
+    click.echo(f"  ✓ 已保存到 {env_path}（下次自动读取）\n", err=True)
+
+
 async def _run_app(
     query: str | None,
     print_mode: bool,
@@ -228,6 +263,16 @@ async def _run_app(
     # Load configuration
     config = load_config(overrides=overrides)
 
+    # First-run setup: if API config is missing and we're on an interactive
+    # terminal, walk the user through it and save ~/.claude/.env.
+    if (
+        (not config.api_key or not config.base_url)
+        and not print_mode
+        and sys.stdin.isatty()
+    ):
+        _interactive_setup()
+        config = load_config(overrides=overrides)
+
     # Setup logging
     log_level = "DEBUG" if config.verbose else "INFO"
     setup_logging(level=log_level)
@@ -240,9 +285,9 @@ async def _run_app(
         click.echo(f"\n  ✗ {detail}\n", err=True)
         click.echo(
             "  配置 API（任选其一）后重试：\n"
-            "    • 设置环境变量 ANTHROPIC_API_KEY 与 ANTHROPIC_BASE_URL\n"
-            "    • 或在当前目录创建 .env 写入以上变量（用 python main.py 启动会自动读取）\n"
-            "    • 用 install.sh 安装的则编辑 ~/.aka/.env\n",
+            "    • 直接在终端运行 aka（不带 -p）会自动引导配置\n"
+            "    • 或设置环境变量 ANTHROPIC_API_KEY / ANTHROPIC_BASE_URL\n"
+            "    • 或在当前目录或 ~/.claude/ 创建 .env 写入以上变量\n",
             err=True,
         )
         sys.exit(1)
