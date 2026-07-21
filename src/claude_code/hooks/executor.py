@@ -116,8 +116,10 @@ class HookExecutor:
         if parsed is not None:
             return _result_from_dict(parsed)
 
-        # Non-JSON stdout: treat as ALLOW with text as reason
-        if stdout:
+        # Non-JSON stdout on a CLEAN exit -> ALLOW with text as reason.
+        # A non-zero exit with non-JSON output must NOT short-circuit here,
+        # or a crashed fail_closed hook (exit 1 + traceback) would be allowed.
+        if stdout and exit_code == _EXIT_ALLOW:
             return HookResult(decision=HookDecision.ALLOW, reason=stdout)
 
         # Exit code 0 + empty stdout -> ALLOW

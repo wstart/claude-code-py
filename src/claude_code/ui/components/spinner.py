@@ -54,8 +54,10 @@ class Spinner:
 
     def update_action(self, action: str) -> None:
         self._action = action
+        # Just refresh — don't swap Live's renderable to a static Text, or
+        # the frame/elapsed time freeze again (renderable must stay `self`).
         if self._live is not None:
-            self._live.update(self._build_display())
+            self._live.refresh()
 
     @property
     def is_active(self) -> bool:

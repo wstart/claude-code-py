@@ -390,7 +390,9 @@ class SSETransport(Transport):
 
         try:
             async for raw_line in self._sse_response.content:
-                line = raw_line.decode("utf-8", errors="replace").rstrip("\n")
+                # rstrip both CR and LF — CRLF servers otherwise leave a
+                # stray "\r" that defeats the blank-line event dispatch.
+                line = raw_line.decode("utf-8", errors="replace").rstrip("\r\n")
 
                 if not line:
                     # Blank line = event dispatch
@@ -453,6 +455,9 @@ class SSETransport(Transport):
             await asyncio.sleep(delay)
 
             try:
+                # Close the previous session/response before reconnecting,
+                # or each reconnect leaks an aiohttp session + response.
+                await self._cleanup_session()
                 await self.connect()
                 logger.info("SSE reconnected successfully")
                 return

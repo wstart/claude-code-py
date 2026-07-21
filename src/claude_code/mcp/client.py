@@ -295,7 +295,24 @@ class MCPClient:
 
     async def _dispatch(self, message: dict[str, Any]) -> None:
         """Route an incoming message to the right handler."""
+        method = message.get("method")
         msg_id = message.get("id")
+
+        # A message carrying a `method` is server-initiated (a request or a
+        # notification) even when it also has an `id` (JSON-RPC requests do).
+        # A response has an `id` and NO `method`.
+        if method is not None:
+            handlers = self._notification_handlers.get(method, [])
+            params = message.get("params", {})
+            for handler in handlers:
+                try:
+                    await handler(params)
+                except Exception as exc:
+                    logger.warning(
+                        "Notification handler for '%s' failed: %s",
+                        method, exc,
+                    )
+            return
 
         if msg_id is not None:
             # Response (success or error)
@@ -318,19 +335,6 @@ class MCPClient:
                 )
             else:
                 future.set_result(message.get("result", {}))
-        else:
-            # Notification or request from server
-            method = message.get("method", "")
-            handlers = self._notification_handlers.get(method, [])
-            params = message.get("params", {})
-            for handler in handlers:
-                try:
-                    await handler(params)
-                except Exception as exc:
-                    logger.warning(
-                        "Notification handler for '%s' failed: %s",
-                        method, exc,
-                    )
 
     def _fail_all_pending(self, reason: str) -> None:
         """Fail all pending requests with a transport error."""

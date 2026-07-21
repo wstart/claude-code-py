@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from fnmatch import fnmatch
+import re
 from typing import Any
 
 from .events import (
@@ -105,11 +105,12 @@ class HookManager:
         for priority, entry in bucket:
             if not entry.enabled:
                 continue
-            # A matcher (from nested settings.json) scopes the hook to
-            # matching tool names; empty matcher fires for every tool.
+            # A matcher (from settings.json) scopes the hook to matching tool
+            # names. Claude Code matchers are regex (e.g. "Edit|Write", ".*"),
+            # so use re.search — empty matcher fires for every tool.
             matcher = getattr(entry, "matcher", "") or ""
             if matcher and payload.tool_name:
-                if not fnmatch(payload.tool_name, matcher):
+                if not _matcher_matches(matcher, payload.tool_name):
                     continue
             logger.debug(
                 "Firing hook %r (priority=%d) for %s",
@@ -168,3 +169,16 @@ class HookManager:
                     timeout=entry.timeout,
                     matcher=entry.matcher,
                 )
+
+
+def _matcher_matches(matcher: str, tool_name: str) -> bool:
+    """Match a hook matcher against a tool name.
+
+    Claude Code hook matchers are regular expressions (``Edit|Write``,
+    ``.*``, ``Notebook.*``). Falls back to literal equality if the pattern
+    is not a valid regex.
+    """
+    try:
+        return re.search(matcher, tool_name) is not None
+    except re.error:
+        return matcher == tool_name

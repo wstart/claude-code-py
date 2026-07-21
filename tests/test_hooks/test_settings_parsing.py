@@ -79,3 +79,43 @@ async def test_matcher_scopes_to_tool() -> None:
         HookPayload(event=HookEvent.PRE_TOOL_USE, tool_name="Bash"),
     )
     assert denied.decision.value == "deny"
+
+
+async def test_matcher_regex_semantics() -> None:
+    # Claude Code matchers are regex: "Edit|Write", ".*", "Notebook.*".
+    from claude_code.hooks.events import HookEvent, HookPayload
+    from claude_code.hooks.manager import HookManager
+
+    mgr = HookManager({
+        "PreToolUse": [
+            {"matcher": "Edit|Write", "hooks": [{"type": "command", "command": "exit 2"}]},
+        ],
+    })
+    # "Edit" matches the alternation → hook runs → deny.
+    denied = await mgr.fire(
+        HookEvent.PRE_TOOL_USE,
+        HookPayload(event=HookEvent.PRE_TOOL_USE, tool_name="Edit"),
+    )
+    assert denied.decision.value == "deny"
+    # "Bash" doesn't match → hook skipped → allow.
+    allowed = await mgr.fire(
+        HookEvent.PRE_TOOL_USE,
+        HookPayload(event=HookEvent.PRE_TOOL_USE, tool_name="Bash"),
+    )
+    assert allowed.decision.value == "allow"
+
+
+def test_malformed_hook_entry_does_not_crash() -> None:
+    from claude_code.hooks.manager import HookManager
+
+    # Non-string matcher / non-coercible priority must be skipped, not crash.
+    mgr = HookManager({
+        "PreToolUse": [
+            {"matcher": 123, "hooks": [{"type": "command", "command": "ok.sh"}]},
+            {"command": "bad.sh", "priority": "high"},
+            {"command": "good.sh"},
+        ],
+    })
+    from claude_code.hooks.events import HookEvent
+    cmds = [e.command for _, e in mgr._hooks.get(HookEvent.PRE_TOOL_USE, [])]
+    assert "good.sh" in cmds

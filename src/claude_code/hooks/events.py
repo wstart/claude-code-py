@@ -143,9 +143,11 @@ def _parse_hook_item(item: Any) -> list[HookEntry]:
     if not isinstance(item, dict):
         return []
 
+    raw_matcher = item.get("matcher", "")
+    matcher = raw_matcher if isinstance(raw_matcher, str) else ""
+
     # Nested shape: {"matcher": "...", "hooks": [{"type": "command", ...}]}
     if isinstance(item.get("hooks"), list):
-        matcher = item.get("matcher", "") or ""
         result: list[HookEntry] = []
         for inner in item["hooks"]:
             entry = _hook_entry(inner, matcher)
@@ -154,23 +156,35 @@ def _parse_hook_item(item: Any) -> list[HookEntry]:
         return result
 
     # Flat shape: {"command": "...", ...}
-    entry = _hook_entry(item, item.get("matcher", "") or "")
+    entry = _hook_entry(item, matcher)
     return [entry] if entry is not None else []
 
 
 def _hook_entry(data: Any, matcher: str) -> HookEntry | None:
-    """Build a HookEntry from an inner/flat dict, or None if it has no command."""
+    """Build a HookEntry from an inner/flat dict, or None if malformed.
+
+    Malformed entries (missing command, non-coercible priority/timeout,
+    non-string matcher) are skipped rather than raising — a bad settings.json
+    should not crash startup.
+    """
     if isinstance(data, str):
         return HookEntry(command=data, matcher=matcher)
     if not isinstance(data, dict):
         return None
     command = data.get("command")
-    if not command:
+    if not command or not isinstance(command, str):
+        return None
+    raw_matcher = data.get("matcher", matcher)
+    entry_matcher = raw_matcher if isinstance(raw_matcher, str) else matcher
+    try:
+        priority = int(data.get("priority", 0))
+        timeout = float(data.get("timeout", 30.0))
+    except (TypeError, ValueError):
         return None
     return HookEntry(
         command=command,
-        matcher=data.get("matcher", matcher) or matcher,
-        priority=int(data.get("priority", 0)),
-        timeout=float(data.get("timeout", 30.0)),
+        matcher=entry_matcher or matcher,
+        priority=priority,
+        timeout=timeout,
         enabled=bool(data.get("enabled", True)),
     )

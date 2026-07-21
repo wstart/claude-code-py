@@ -29,6 +29,21 @@ async def test_bad_exit_code_fail_closed() -> None:
     assert r.decision == HookDecision.DENY
 
 
+async def test_crashed_hook_with_nonjson_stdout_fail_closed() -> None:
+    # Security: a fail_closed hook that crashes (exit 1) while printing a
+    # non-JSON traceback must DENY, not be short-circuited to ALLOW.
+    ex = HookExecutor()
+    r = await ex.execute("echo 'Traceback: boom'; exit 1", _payload(), fail_closed=True)
+    assert r.decision == HookDecision.DENY
+
+
+async def test_clean_nonjson_stdout_still_allows() -> None:
+    # exit 0 + non-JSON stdout keeps the documented ALLOW contract.
+    ex = HookExecutor()
+    r = await ex.execute("echo ok; exit 0", _payload(), fail_closed=True)
+    assert r.decision == HookDecision.ALLOW
+
+
 async def test_clean_allow_respected_under_fail_closed() -> None:
     # A hook that runs and exits 0 (allow) is honoured even in fail-closed.
     ex = HookExecutor()

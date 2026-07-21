@@ -274,6 +274,12 @@ def _params_match(
             haystack = " ".join(str(v) for v in params.values())
         else:
             haystack = str(params.get(primary_key, ""))
-        return fnmatch.fnmatch(haystack, rule.param_hint)
+        hint = rule.param_hint
+        # A hint with glob metacharacters is matched as a whole-string glob
+        # ("Bash(npm *)"); a plain hint is a substring match, matching the
+        # documented "contains" / "starts with" semantics ("WebFetch(host)").
+        if any(c in hint for c in "*?["):
+            return fnmatch.fnmatch(haystack, hint)
+        return hint in haystack
 
     return True

@@ -73,13 +73,31 @@ def test_check_param_hint_glob_matches_primary_param() -> None:
     assert engine.check("Bash", {"command": "rm -rf /"}) == "ask"
 
 
-def test_check_param_hint_is_full_match_not_prefix() -> None:
-    """fnmatch requires a whole-string match, so a bare token is not a prefix."""
+def test_check_param_hint_plain_is_substring_match() -> None:
+    """A plain (no-glob) hint matches as a substring — the documented
+    'contains' / 'starts with' semantics."""
     engine = RuleEngine()
     engine.add_rule(PermissionRule.parse("Bash(npm test)", RuleAction.ALLOW))
     assert engine.check("Bash", {"command": "npm test"}) == "allow"
-    # "npm test --watch" does NOT match the exact hint "npm test".
-    assert engine.check("Bash", {"command": "npm test --watch"}) == "ask"
+    # "npm test --watch" contains "npm test" → matches.
+    assert engine.check("Bash", {"command": "npm test --watch"}) == "allow"
+    # Unrelated command does not match.
+    assert engine.check("Bash", {"command": "ls -la"}) == "ask"
+
+
+def test_check_param_hint_deny_substring_blocks() -> None:
+    # A deny hint written per the docs must actually block (was a silent
+    # security gap under whole-string fnmatch).
+    engine = RuleEngine()
+    engine.add_rule(PermissionRule.parse("WebFetch(internal.host)", RuleAction.DENY))
+    assert engine.check("WebFetch", {"url": "https://internal.host/secret"}) == "deny"
+    assert engine.check("WebFetch", {"url": "https://example.com/"}) == "ask"
+
+
+def test_check_param_hint_glob_still_whole_string() -> None:
+    engine = RuleEngine()
+    engine.add_rule(PermissionRule.parse("Bash(npm *)", RuleAction.ALLOW))
+    assert engine.check("Bash", {"command": "npm run build"}) == "allow"
 
 
 def test_check_write_path_glob() -> None:
