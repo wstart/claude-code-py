@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from fnmatch import fnmatch
 from typing import Any
 
 from .events import (
@@ -50,6 +51,7 @@ class HookManager:
         command: str,
         priority: int = 0,
         timeout: float = 30.0,
+        matcher: str = "",
     ) -> None:
         """Register a hook for an event.
 
@@ -58,12 +60,15 @@ class HookManager:
             command: Shell command or script path.
             priority: Higher values run first.
             timeout: Per-hook timeout in seconds.
+            matcher: Optional glob scoping the hook to matching tool names.
         """
-        entry = HookEntry(command=command, priority=priority, timeout=timeout)
+        entry = HookEntry(
+            command=command, priority=priority, timeout=timeout, matcher=matcher
+        )
         bucket = self._hooks.setdefault(event, [])
-        # Avoid duplicate commands
+        # Avoid duplicate (command, matcher) pairs
         for _, existing in bucket:
-            if existing.command == command:
+            if existing.command == command and existing.matcher == matcher:
                 return
         bucket.append((priority, entry))
         bucket.sort(key=lambda t: t[0], reverse=True)
@@ -100,6 +105,12 @@ class HookManager:
         for priority, entry in bucket:
             if not entry.enabled:
                 continue
+            # A matcher (from nested settings.json) scopes the hook to
+            # matching tool names; empty matcher fires for every tool.
+            matcher = getattr(entry, "matcher", "") or ""
+            if matcher and payload.tool_name:
+                if not fnmatch(payload.tool_name, matcher):
+                    continue
             logger.debug(
                 "Firing hook %r (priority=%d) for %s",
                 entry.command, priority, event.value,
@@ -152,4 +163,5 @@ class HookManager:
                     command=entry.command,
                     priority=entry.priority,
                     timeout=entry.timeout,
+                    matcher=entry.matcher,
                 )

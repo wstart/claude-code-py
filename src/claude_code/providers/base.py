@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ToolDefinition(BaseModel):
@@ -53,6 +53,18 @@ class StreamEvent(BaseModel):
         description="Token usage: input_tokens, output_tokens.",
     )
     raw: Any = Field(default=None, description="Raw provider event for debugging.")
+
+    @field_validator("content", "tool_id", "tool_name", "stop_reason", mode="before")
+    @classmethod
+    def _none_str_to_empty(cls, v: Any) -> Any:
+        # Providers (esp. OpenAI-compatible gateways) may send explicit
+        # ``null`` for these fields; coerce to "" instead of erroring.
+        return "" if v is None else v
+
+    @field_validator("tool_input", "usage", mode="before")
+    @classmethod
+    def _none_dict_to_empty(cls, v: Any) -> Any:
+        return {} if v is None else v
 
 
 class ProviderResponse(BaseModel):
