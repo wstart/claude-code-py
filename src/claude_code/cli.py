@@ -215,7 +215,7 @@ def _interactive_setup() -> None:
     base_url = click.prompt("  Base URL", default="https://api.anthropic.com")
     model = click.prompt("  Model", default="claude-sonnet-4-6")
 
-    env_dir = Path.home() / ".claude"
+    env_dir = Path.home() / ".aka"
     env_dir.mkdir(parents=True, exist_ok=True)
     env_path = env_dir / ".env"
     body = (
