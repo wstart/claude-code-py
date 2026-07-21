@@ -16,7 +16,9 @@ def _load_one(path: Path) -> None:
     if not path.is_file():
         return
     try:
-        content = path.read_text(encoding="utf-8")
+        # utf-8-sig strips a leading BOM (Windows editors add one), which
+        # would otherwise corrupt the first line's variable name.
+        content = path.read_text(encoding="utf-8-sig")
     except OSError:
         return
     for line in content.splitlines():

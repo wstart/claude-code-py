@@ -80,6 +80,14 @@ class WriteTool(Tool):
             try:
                 async with aiofiles.open(fd, "wb") as f:
                     await f.write(encoded)
+                # Preserve the existing file's permission bits — mkstemp
+                # creates 0600, which would otherwise strip 0644/0755 on
+                # overwrite (e.g. lose +x on a script).
+                try:
+                    existing_mode = os.stat(path).st_mode
+                    os.chmod(tmp_path, existing_mode)
+                except FileNotFoundError:
+                    pass
                 # Atomic rename (POSIX guarantees this)
                 os.replace(tmp_path, str(path))
             except Exception:

@@ -134,22 +134,38 @@ class WebFetchTool(Tool):
                 },
             ) as client:
                 current_url = url
-                response = None
+                status_code = 0
+                encoding = "utf-8"
+                raw = b""
+                got_final = False
                 for _ in range(_MAX_REDIRECTS + 1):
                     err = await _validate_public_url(current_url)
                     if err:
                         return ToolResult.error(err)
-                    response = await client.get(current_url)
-                    if not response.is_redirect:
+                    # Stream so a huge body is bounded, not fully buffered
+                    # into memory (the previous response.text read it all).
+                    async with client.stream("GET", current_url) as response:
+                        status_code = response.status_code
+                        if response.is_redirect:
+                            location = response.headers.get("location")
+                            if not location:
+                                got_final = True
+                                break
+                            current_url = str(response.url.join(location))
+                            continue
+                        encoding = response.encoding or "utf-8"
+                        chunks: list[bytes] = []
+                        got = 0
+                        async for chunk in response.aiter_bytes():
+                            chunks.append(chunk)
+                            got += len(chunk)
+                            if got >= _MAX_RESPONSE_SIZE:
+                                break
+                        raw = b"".join(chunks)[:_MAX_RESPONSE_SIZE]
+                        got_final = True
                         break
-                    location = response.headers.get("location")
-                    if not location:
-                        break
-                    current_url = str(response.url.join(location))
-                else:
-                    return ToolResult.error(
-                        f"Too many redirects fetching {url}"
-                    )
+                if not got_final:
+                    return ToolResult.error(f"Too many redirects fetching {url}")
         except httpx.TimeoutException:
             return ToolResult.error(f"Timeout fetching {url}")
         except httpx.ConnectError:
@@ -157,19 +173,12 @@ class WebFetchTool(Tool):
         except httpx.HTTPError as exc:
             return ToolResult.error(f"HTTP error fetching {url}: {exc}")
 
-        if response is None:
-            return ToolResult.error(f"No response fetching {url}")
-        if response.status_code == 404:
+        if status_code == 404:
             return ToolResult.error(f"Page not found (404): {url}")
-        if response.status_code >= 400:
-            return ToolResult.error(
-                f"HTTP {response.status_code} fetching {url}"
-            )
+        if status_code >= 400:
+            return ToolResult.error(f"HTTP {status_code} fetching {url}")
 
-        # Check size (bounded read below still guards memory)
-        content = response.text
-        if len(content) > _MAX_RESPONSE_SIZE:
-            content = content[:_MAX_RESPONSE_SIZE]
+        content = raw.decode(encoding, errors="replace")
 
         # Convert HTML to text
         markdown_text = _html_to_text(content)

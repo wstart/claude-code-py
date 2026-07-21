@@ -151,6 +151,10 @@ class ReadTool(Tool):
 
         # Slice to requested range (offset is 1-based)
         start = max(0, offset - 1)
+        if total_lines and start >= total_lines:
+            return ToolResult.error(
+                f"offset {offset} 超过文件末尾（文件共 {total_lines} 行）"
+            )
         end = start + limit
         selected = lines[start:end]
 

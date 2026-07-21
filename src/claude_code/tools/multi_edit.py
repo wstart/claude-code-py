@@ -138,8 +138,13 @@ class MultiEditTool(Tool):
         out = content.replace("\n", "\r\n") if uses_crlf else content
         try:
             data = out.encode(encoding)
-        except (UnicodeEncodeError, LookupError):
+        except LookupError:
             data = out.encode("utf-8")
+        except UnicodeEncodeError:
+            return ToolResult.error(
+                f"新内容含 {encoding} 编码无法表示的字符，已取消写入"
+                "（以免静默改变文件编码）。"
+            )
         try:
             path.write_bytes(data)
         except (PermissionError, OSError) as exc:

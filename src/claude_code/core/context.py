@@ -41,13 +41,13 @@ def _estimate_message_tokens(message: dict[str, Any]) -> int:
         total = 0
         for block in content:
             if isinstance(block, dict):
-                text = block.get("text", "") or block.get("content", "")
+                text = block.get("text") or block.get("content") or ""
                 if isinstance(text, str):
                     total += count_tokens_approx(text)
                 elif isinstance(text, list):
                     for sub in text:
                         if isinstance(sub, dict):
-                            total += count_tokens_approx(sub.get("text", ""))
+                            total += count_tokens_approx(sub.get("text") or "")
                 # tool_use payload lives under "input", not "text"/"content".
                 tool_input = block.get("input")
                 if isinstance(tool_input, dict):
@@ -135,10 +135,19 @@ def compress(
     # Compress middle messages
     compressed_middle = _compress_messages(middle_msgs)
 
-    # If still too large, drop oldest compressed messages
+    # If still too large, drop the oldest compressed messages. Drop whole
+    # (assistant, following user/tool_result) pairs from the front so we
+    # don't orphan a tool_result or leave the turn starting on assistant.
     result = system_msgs + compressed_middle + recent_msgs
     while _total_tokens(result) > context_limit and len(compressed_middle) > 1:
         compressed_middle.pop(0)
+        # If the new head is a user tool_result (its tool_use just left),
+        # or we now start on assistant, drop one more to stay valid.
+        while (
+            len(compressed_middle) > 1
+            and compressed_middle[0].get("role") == "assistant"
+        ):
+            compressed_middle.pop(0)
         result = system_msgs + compressed_middle + recent_msgs
 
     return result
@@ -194,8 +203,8 @@ def _compress_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     new_blocks.append(new_block)
 
                 elif block_type == "text":
-                    # Truncate long text
-                    text = block.get("text", "")
+                    # Truncate long text (None-safe: providers may send null)
+                    text = block.get("text") or ""
                     if len(text) > max_content_chars:
                         new_blocks.append({
                             "type": "text",
@@ -217,7 +226,7 @@ def _compress_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     continue
 
                 if block.get("type") == "tool_result":
-                    result_content = block.get("content", "")
+                    result_content = block.get("content") or ""
                     if isinstance(result_content, str) and len(result_content) > max_content_chars:
                         new_blocks.append({
                             "type": "tool_result",
@@ -228,7 +237,7 @@ def _compress_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
                         truncated = []
                         for sub in result_content:
                             if isinstance(sub, dict):
-                                t = sub.get("text", "")
+                                t = sub.get("text") or ""
                                 if len(t) > max_content_chars:
                                     truncated.append({
                                         "type": "text",

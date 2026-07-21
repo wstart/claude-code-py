@@ -128,17 +128,16 @@ class ClaudeApp:
         base_url = self.config.base_url
         model = self.config.model or "claude-sonnet-4-20250514"
 
-        # Check env
-        issues = []
+        # base_url is optional for Anthropic (defaults to the public API);
+        # only the API key is truly required.
+        if not base_url:
+            base_url = "https://api.anthropic.com"
+
         if not api_key:
-            issues.append(
+            return False, (
+                "配置问题:\n  "
                 "API Key 未设置 (检查 .env 中的 ANTHROPIC_AUTH_TOKEN 或 ANTHROPIC_API_KEY)"
             )
-        if not base_url:
-            issues.append("Base URL 未设置 (检查 .env 中的 ANTHROPIC_BASE_URL)")
-
-        if issues:
-            return False, "配置问题:\n  " + "\n  ".join(issues)
 
         # Test API call
         url = base_url.rstrip("/") + "/v1/messages"

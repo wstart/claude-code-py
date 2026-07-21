@@ -263,13 +263,10 @@ async def _run_app(
     # Load configuration
     config = load_config(overrides=overrides)
 
-    # First-run setup: if API config is missing and we're on an interactive
-    # terminal, walk the user through it and save ~/.claude/.env.
-    if (
-        (not config.api_key or not config.base_url)
-        and not print_mode
-        and sys.stdin.isatty()
-    ):
+    # First-run setup: if the API key is missing and we're on an interactive
+    # terminal, walk the user through it and save ~/.aka/.env. base_url is
+    # optional (Anthropic defaults to the public API), so don't gate on it.
+    if not config.api_key and not print_mode and sys.stdin.isatty():
         _interactive_setup()
         config = load_config(overrides=overrides)
 
@@ -287,7 +284,7 @@ async def _run_app(
             "  配置 API（任选其一）后重试：\n"
             "    • 直接在终端运行 aka（不带 -p）会自动引导配置\n"
             "    • 或设置环境变量 ANTHROPIC_API_KEY / ANTHROPIC_BASE_URL\n"
-            "    • 或在当前目录或 ~/.claude/ 创建 .env 写入以上变量\n",
+            "    • 或在当前目录或 ~/.aka/ 创建 .env 写入以上变量\n",
             err=True,
         )
         sys.exit(1)
@@ -359,7 +356,10 @@ def auth(action: str) -> None:
     elif action == "status":
         import os
 
-        has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
+        has_key = bool(
+            os.environ.get("ANTHROPIC_API_KEY")
+            or os.environ.get("ANTHROPIC_AUTH_TOKEN")
+        )
         if has_key:
             click.echo("Authenticated (API key found in environment)")
         else:
@@ -386,7 +386,10 @@ def doctor() -> None:
     click.echo(f"Git: {git_path or 'NOT FOUND'}")
 
     # Check API key
-    has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    has_key = bool(
+            os.environ.get("ANTHROPIC_API_KEY")
+            or os.environ.get("ANTHROPIC_AUTH_TOKEN")
+        )
     click.echo(f"API Key: {'configured' if has_key else 'NOT SET'}")
 
     # Check settings

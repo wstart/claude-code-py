@@ -209,5 +209,8 @@ def _check_type(expected: str | list[str], value: Any) -> bool:
     types = _TYPE_MAP.get(expected)
     if types is None:
         return True  # unknown type → accept
-    # int is also valid "number"
+    # bool is a subclass of int — reject it for integer/number so a
+    # `timeout=true` doesn't sneak through numeric validation.
+    if expected in ("integer", "number") and isinstance(value, bool):
+        return False
     return isinstance(value, types)
